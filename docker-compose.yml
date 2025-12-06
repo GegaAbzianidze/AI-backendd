@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3000:8080"
+    environment:
+      - NODE_ENV=development
+      - PORT=8080
+      - API_KEY=change-me-in-production
+      - YOLO_MODEL_PATH=/app/models/my_model/train/weights/best.pt
+      - PYTHON_EXECUTABLE=/app/python/venv/bin/python
+      - MIN_CONFIDENCE=0.5
+    volumes:
+      - ./uploads:/app/uploads
+      - ./frames:/app/frames
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:8080/', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s

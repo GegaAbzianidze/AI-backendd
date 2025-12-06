@@ -1,0 +1,119 @@
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
+
+# Build outputs
+dist/
+build/
+*.js.map
+*.d.ts.map
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env*.local
+
+# Python
+python/venv/
+python/__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+pip-log.txt
+pip-delete-this-directory.txt
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Uploads and temporary files
+uploads/*
+!uploads/.gitkeep
+frames/*
+!frames/.gitkeep
+
+# Logs
+*.log
+logs/
+*.log.*
+
+# OS files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*.swn
+*.bak
+*~
+.project
+.classpath
+.settings/
+*.sublime-project
+*.sublime-workspace
+
+# TypeScript cache
+*.tsbuildinfo
+
+# Testing
+coverage/
+.nyc_output/
+
+# Docker
+.dockerignore
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Database files (if any)
+*.sqlite
+*.sqlite3
+*.db
+
+# Package lock files (choose one)
+# package-lock.json  # Uncomment if using yarn only
+# yarn.lock          # Uncomment if using npm only
+
+# Railway/Fly.io
+.railway/
+fly.toml.backup
+
+# Model training outputs (keep only best.pt)
+models/my_model/train/*.jpg
+models/my_model/train/*.png
+models/my_model/train/*.csv
+models/my_model/train/weights/last.pt
+models/my_model/vea.mp4
+models/my_model/yolo_detect.py
+
+# Cache directories
+.cache/
+.parcel-cache/
+.next/
+out/
+
+# Miscellaneous
+*.pem
+*.key
+.env.backup

@@ -1,0 +1,99 @@
+# Ultra-light Dockerfile for Fly.io (CPU-only PyTorch)
+# This version uses CPU-only PyTorch to significantly reduce image size
+
+# Stage 1: Builder
+FROM node:20-slim AS builder
+
+WORKDIR /app
+
+# Install build dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy and install Node.js dependencies
+COPY package*.json ./
+RUN npm ci --only=production && npm cache clean --force
+
+# Build TypeScript
+COPY tsconfig.json ./
+COPY src ./src
+RUN npm install typescript && npm run build && npm prune --production
+
+# Stage 2: Python builder
+FROM python:3.12-slim AS python-builder
+
+WORKDIR /app
+
+# Install Python dependencies with CPU-only PyTorch
+COPY python/requirements.txt ./
+RUN python -m venv /venv \
+    && /venv/bin/pip install --no-cache-dir --upgrade pip setuptools wheel \
+    && /venv/bin/pip install --no-cache-dir \
+        ultralytics==8.3.38 \
+        opencv-python-headless==4.10.0.84 \
+        numpy==1.26.4 \
+        easyocr==1.7.1 \
+        --extra-index-url https://download.pytorch.org/whl/cpu \
+    && find /venv -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true \
+    && find /venv -type f -name "*.pyc" -delete \
+    && find /venv -type f -name "*.pyo" -delete \
+    && /venv/bin/pip uninstall -y pip setuptools
+
+# Stage 3: Final runtime
+FROM node:20-slim
+
+WORKDIR /app
+
+# Install only runtime dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ffmpeg \
+    python3 \
+    libgl1-mesa-glx \
+    libglib2.0-0 \
+    libgomp1 \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
+
+# Copy Node.js app from builder
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/dist ./dist
+COPY package*.json ./
+
+# Copy Python virtual environment from python-builder
+COPY --from=python-builder /venv /app/python/venv
+
+# Copy application files (minimal)
+COPY public ./public
+COPY python/detector.py ./python/detector.py
+COPY skin_list.txt ./skin_list.txt
+
+# Copy ONLY the model weights file
+COPY models/my_model/train/weights/best.pt ./models/my_model/train/weights/best.pt
+COPY models/my_model/train/args.yaml ./models/my_model/train/args.yaml
+
+# Create directories
+RUN mkdir -p uploads frames data
+
+# Environment variables
+ENV NODE_ENV=production \
+    PORT=8080 \
+    YOLO_MODEL_PATH=/app/models/my_model/train/weights/best.pt \
+    PYTHON_EXECUTABLE=/app/python/venv/bin/python \
+    API_KEY=change-me-in-production
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+  CMD node -e "require('http').get('http://localhost:8080/', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
+
+EXPOSE 8080
+
+# Non-root user
+RUN addgroup --system --gid 1001 nodejs \
+    && adduser --system --uid 1001 appuser \
+    && chown -R appuser:nodejs /app
+
+USER appuser
+
+CMD ["node", "dist/index.js"]
+
