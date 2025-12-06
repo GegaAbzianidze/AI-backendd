@@ -19,50 +19,83 @@ Your AI Backend is now split into 2 services:
 ```bash
 # In your project root
 git add .
-git commit -m "Microservices architecture"
+git commit -m "Microservices architecture with Railway config"
 git push
 ```
 
-### Step 2: Deploy YOLO Service First
+### Step 2: Deploy YOLO Service
 
 1. **Go to [railway.app](https://railway.app)**
 2. **Click "New Project"**
 3. **Deploy from GitHub repo**
-4. **Important: In Advanced Settings:**
-   - **Root Directory:** `yolo-service`
-   - This tells Railway to build from the yolo-service subdirectory
+4. **⚠️ IMPORTANT: Configure Build Settings**
+   
+   In the Railway dashboard:
+   - Click on your service
+   - Go to **Settings** → **Build**
+   - **Root Directory:** `.` (leave as root - important!)
+   - **Dockerfile Path:** `yolo-service/Dockerfile`
+   
+   Or use the `railway.json` in `yolo-service/` directory (Railway auto-detects it)
+
 5. **Environment Variables (optional):**
-   - `PORT=8000`
-   - `MIN_CONFIDENCE=0.5`
+   ```
+   PORT=8000
+   MIN_CONFIDENCE=0.5
+   ```
+
 6. **Deploy!**
 
 **Get the URL:**
-- Go to **Settings** → **Domains**
+- Go to **Settings** → **Networking** → **Public Networking**
 - Click **Generate Domain**
 - Copy the URL: `https://yolo-service-production-xxxx.up.railway.app`
 
 ### Step 3: Deploy Backend Service
 
-1. **Create another project** (or add service to same project)
-2. **Deploy from GitHub repo**  
-3. **Important: In Advanced Settings:**
-   - **Root Directory:** `.` (root, default)
+1. **In the same project, click "New Service"** (or create new project)
+2. **Deploy from GitHub repo** (same repository)
+3. **Configure Build Settings:**
+   - **Root Directory:** `.` (root)
    - **Dockerfile Path:** `Dockerfile.backend`
+   
 4. **Set Environment Variables:**
    ```
-   API_KEY=your-super-secure-key
+   API_KEY=your-super-secure-key-here
    YOLO_SERVICE_URL=https://yolo-service-production-xxxx.up.railway.app
    PORT=3000
+   NODE_ENV=production
    ```
-   ⚠️ **Replace the YOLO_SERVICE_URL** with your actual YOLO service URL from Step 2!
+   
+   ⚠️ **Important:** Replace `YOLO_SERVICE_URL` with your actual YOLO service URL from Step 2!
 
 5. **Deploy!**
 
 ### Step 4: Get Backend URL
 
-- Go to **Settings** → **Domains**  
+- Go to **Settings** → **Networking** → **Public Networking**
 - Click **Generate Domain**
 - Your app: `https://backend-production-xxxx.up.railway.app`
+
+## ⚡ Alternative: Internal Networking (Recommended)
+
+If both services are in the same Railway project, use internal networking:
+
+### YOLO Service
+- No special config needed
+
+### Backend Service Variables:
+```
+API_KEY=your-super-secure-key
+YOLO_SERVICE_URL=http://${{RAILWAY_SERVICE_NAME}}.railway.internal:8000
+```
+
+Or reference by service name:
+```
+YOLO_SERVICE_URL=http://yolo-service.railway.internal:8000
+```
+
+This keeps traffic internal to Railway's network (faster & free)!
 
 ## ✅ Test Your Deployment
 
@@ -72,11 +105,12 @@ git push
 curl https://your-yolo-service.up.railway.app/health
 ```
 
-Should return:
+**Expected Response:**
 ```json
 {
   "status": "healthy",
   "torch_available": true,
+  "cuda_available": false,
   "opencv_available": true,
   "yolo_available": true
 }
@@ -89,7 +123,7 @@ curl https://your-backend.up.railway.app/api/test-key \
   -H "X-API-Key: your-super-secure-key"
 ```
 
-Should return:
+**Expected Response:**
 ```json
 {
   "success": true,
@@ -100,106 +134,135 @@ Should return:
 ### Test Full Flow
 
 1. Open `https://your-backend.up.railway.app` in browser
-2. Enter API key
-3. Upload a video
-4. Watch it process! 🎉
-
-## 🎯 Alternative: Single Project with Multiple Services
-
-You can also deploy both as services in a single Railway project:
-
-1. **Create new project**
-2. **Add service** → GitHub repo (YOLO)
-   - Root Directory: `yolo-service`
-3. **Add another service** → Same GitHub repo (Backend)
-   - Root Directory: `.`
-   - Dockerfile: `Dockerfile.backend`
-4. **Link them:**
-   - In Backend service variables:
-   - `YOLO_SERVICE_URL=${{yolo-service.RAILWAY_PRIVATE_DOMAIN}}`
-
-Railway will create internal networking between services!
-
-## 💰 Cost Breakdown
-
-### YOLO Service
-- **2GB RAM, 2 vCPU**
-- ~$8-10/month
-
-### Backend Service
-- **1GB RAM, 1 vCPU**
-- ~$5-7/month
-
-**Total: ~$13-17/month**
-
-**Advantages:**
-✅ Much smaller Docker images (build faster)
-✅ Scale services independently  
-✅ Better resource utilization
-✅ Cleaner architecture
+2. Enter your API key when prompted
+3. Click "Save Key"
+4. Click "+ New Job"
+5. Upload a video
+6. Watch it process across both services! 🎉
 
 ## 🐛 Troubleshooting
+
+### Build Error: "model not found"
+
+**Problem:** Docker can't find model files
+
+**Solution:** Make sure:
+1. Build from root directory (`.`)
+2. Dockerfile path is `yolo-service/Dockerfile`
+3. Model files are committed to git (check `.gitignore`)
+
+**Verify model exists:**
+```bash
+ls -lh models/my_model/train/weights/best.pt
+```
+
+### Build Error: "COPY failed"
+
+**Problem:** Dockerfile trying to copy from parent directory
+
+**Solution:** Already fixed! The Dockerfile now expects to be built from root with paths like:
+```dockerfile
+COPY yolo-service/main.py .
+COPY python/detector.py ./python/detector.py
+```
 
 ### "YOLO service unavailable"
 
 **Check:**
-1. YOLO service is deployed and running
-2. `YOLO_SERVICE_URL` is set correctly in backend
-3. Health check passes: `curl https://yolo-service/health`
+1. YOLO service is deployed and shows "Active"
+2. Health check is passing: `/health` endpoint
+3. `YOLO_SERVICE_URL` is correctly set in backend
+4. No typos in the URL
 
-**Backend will fallback to local Python** if service is unavailable (requires Python in backend image).
+**Test:**
+```bash
+# Test health endpoint
+curl https://your-yolo-service.up.railway.app/health
 
-### "Build failed"
+# Check logs
+railway logs --service yolo-service
+```
+
+### "Module not found" errors
 
 **YOLO Service:**
-- Check `yolo-service/Dockerfile` exists
-- Check model files are in git (or accessible)
-- View build logs in Railway
+- Check `requirements.txt` is in `yolo-service/`
+- Verify all dependencies installed
+
+**Backend:**
+- Check `package.json` dependencies
+- Run `npm install` locally first
+
+### Build timeout
+
+**Solution:** Split the build or increase resources
+- Go to **Settings** → **Resources**
+- Increase RAM to 4GB during build
+- Can reduce back to 2GB after deployment
+
+## 📊 Estimated Costs
+
+### Railway Pricing
+
+**YOLO Service (Recommended):**
+- 2GB RAM, 2 vCPU
+- ~$8-10/month
+
+**Backend Service (Recommended):**
+- 1GB RAM, 1 vCPU  
+- ~$5-7/month
+
+**Total: ~$13-17/month**
+
+**Cheaper alternatives:**
+- Use 1GB RAM for YOLO (slower): ~$10/month total
+- Use serverless mode (auto-sleep when idle): ~$5/month total
+
+## 🔧 Configuration Tips
+
+### Railway Project Structure
+
+**Option 1: Separate Projects**
+```
+Project: YOLO Service
+  - Service: yolo-service (from GitHub)
+
+Project: Backend
+  - Service: backend (from GitHub)
+  - Variable: YOLO_SERVICE_URL (public URL)
+```
+
+**Option 2: Single Project (Recommended)**
+```
+Project: AI Backend
+  - Service: yolo-service
+  - Service: backend
+  - Internal networking between services
+```
+
+### Build Configuration
+
+**YOLO Service:**
+```json
+{
+  "build": {
+    "builder": "DOCKERFILE",
+    "dockerfilePath": "yolo-service/Dockerfile"
+  }
+}
+```
 
 **Backend Service:**
-- Check `Dockerfile.backend` exists
-- Verify no Python dependencies in package.json
-- View build logs in Railway
-
-### "Cannot connect services"
-
-If using internal networking:
-```
-YOLO_SERVICE_URL=${{yolo-service.RAILWAY_PRIVATE_DOMAIN}}
+```json
+{
+  "build": {
+    "builder": "DOCKERFILE",
+    "dockerfilePath": "Dockerfile.backend"
+  }
+}
 ```
 
-If using public URLs:
-```
-YOLO_SERVICE_URL=https://yolo-service.up.railway.app
-```
-
-## 📊 Monitoring
-
-### Railway Dashboard
-
-Each service shows:
-- CPU usage
-- Memory usage
-- Request count
-- Build/deploy logs
-- Metrics
-
-### CLI Monitoring
-
-```bash
-# View YOLO service logs
-railway logs --service yolo-service
-
-# View backend logs
-railway logs --service backend
-
-# View all services
-railway status
-```
-
-## 🔄 Updates & Redeployment
-
-### Auto-Deploy on Push
+## 🚀 Auto-Deploy on Push
 
 Both services automatically redeploy when you push to GitHub!
 
@@ -210,49 +273,167 @@ git commit -m "Updated feature"
 git push
 
 # Railway automatically:
-# 1. Rebuilds changed services
-# 2. Runs health checks
-# 3. Switches traffic
+# 1. Detects changes
+# 2. Rebuilds affected services
+# 3. Runs health checks
+# 4. Switches traffic
 ```
 
-### Manual Deploy
+## 💡 Performance Tips
+
+### 1. Use Internal Networking
+```
+YOLO_SERVICE_URL=http://yolo-service.railway.internal:8000
+```
+- Faster (no internet roundtrip)
+- Free (doesn't count as egress)
+
+### 2. Enable Caching
+Railway caches Docker layers automatically
+
+### 3. Scale Appropriately
+- Start with minimum resources
+- Monitor usage in dashboard
+- Scale up if needed
+
+### 4. Use Shared Volumes
+For persistent data between deployments:
+- Go to **Settings** → **Volumes**
+- Add volume at `/app/data`
+- 10GB recommended
+
+## 📈 Monitoring
+
+### Railway Dashboard
+
+Each service shows:
+- ✅ CPU usage graph
+- ✅ Memory usage graph
+- ✅ Network traffic
+- ✅ Build logs
+- ✅ Deploy logs
+- ✅ Runtime logs
+- ✅ Metrics & analytics
+
+### CLI Monitoring
 
 ```bash
-# Deploy specific service
-railway up --service backend
-railway up --service yolo-service
+# Install Railway CLI
+npm install -g @railway/cli
+
+# Login
+railway login
+
+# Link project
+railway link
+
+# View logs
+railway logs --service yolo-service
+railway logs --service backend
+
+# Check status
+railway status
 ```
 
-## 🎨 Optional: Custom Domains
+## 🔄 Rollback
 
-Add custom domains to each service:
+If deployment fails:
+
+### Via Dashboard:
+1. Go to **Deployments**
+2. Find previous working deployment
+3. Click **"Redeploy"**
+
+### Via CLI:
+```bash
+railway rollback
+```
+
+## 🎨 Custom Domains (Optional)
+
+### Add Domains
 
 **Backend:**
-```
-api.yourdomain.com → backend.up.railway.app
-```
+1. Go to **Settings** → **Networking** → **Public Networking**
+2. Add custom domain: `api.yourdomain.com`
+3. Add CNAME record: `api CNAME backend.up.railway.app`
 
 **YOLO Service:**
-```
-yolo.yourdomain.com → yolo-service.up.railway.app
-```
+1. Add custom domain: `yolo.yourdomain.com`  
+2. Add CNAME record: `yolo CNAME yolo-service.up.railway.app`
 
-Then update backend env:
+### Update Backend Config
 ```
 YOLO_SERVICE_URL=https://yolo.yourdomain.com
 ```
 
-## 🎉 You're Done!
+## ✅ Deployment Checklist
 
-Your microservices are now:
-- ✅ Deployed to Railway
-- ✅ Auto-scaling independently
-- ✅ Communicating via HTTP
-- ✅ Auto-deploying on push
-- ✅ Monitored with metrics
+Before deploying:
+- [ ] Code pushed to GitHub
+- [ ] `.gitignore` excludes `node_modules`, `.env`, `venv`
+- [ ] Model file exists: `models/my_model/train/weights/best.pt`
+- [ ] Both Dockerfiles build successfully locally
 
-**Test your app:**
-`https://your-backend.up.railway.app`
+For YOLO Service:
+- [ ] Build from root directory
+- [ ] Dockerfile path: `yolo-service/Dockerfile`
+- [ ] `railway.json` in `yolo-service/` directory
 
-Enjoy your scalable AI backend! 🚀✨
+For Backend:
+- [ ] Build from root directory
+- [ ] Dockerfile path: `Dockerfile.backend`
+- [ ] `YOLO_SERVICE_URL` environment variable set
+- [ ] `API_KEY` environment variable set
 
+After deploying:
+- [ ] Both services show "Active" status
+- [ ] Health checks passing
+- [ ] Can access both URLs
+- [ ] Test API key endpoint works
+- [ ] Upload a test video successfully
+
+## 🎉 Success!
+
+Once deployed, your architecture looks like:
+
+```
+Internet
+   ↓
+Backend (https://backend.up.railway.app)
+   ↓ internal/private network
+YOLO Service (http://yolo-service.railway.internal:8000)
+```
+
+**Features:**
+- ✅ Auto-scaling
+- ✅ Auto-deploys
+- ✅ Health monitoring
+- ✅ Log aggregation
+- ✅ Metrics & analytics
+- ✅ Zero-downtime deployments
+
+## 📞 Support
+
+- **Railway Docs:** https://docs.railway.app
+- **Discord:** https://discord.gg/railway
+- **Status:** https://status.railway.app
+
+## 🚀 Quick Commands
+
+```bash
+# View logs (follow mode)
+railway logs -f --service yolo-service
+railway logs -f --service backend
+
+# Restart service
+railway restart --service yolo-service
+
+# Open dashboard
+railway open
+
+# Deploy manually
+railway up --service yolo-service
+```
+
+Happy deploying! 🎊

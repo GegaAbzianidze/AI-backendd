@@ -22,13 +22,13 @@ RUN pip install --no-cache-dir --upgrade pip setuptools wheel \
     && find /usr/local -type f -name "*.pyo" -delete
 
 # Copy service files
-COPY main.py .
+COPY yolo-service/main.py .
 
-# Copy detector module and model (from parent directory)
-COPY ../python/detector.py ./python/detector.py
-COPY ../models/my_model/train/weights/best.pt ./models/my_model/train/weights/best.pt
-COPY ../models/my_model/train/args.yaml ./models/my_model/train/args.yaml
-COPY ../skin_list.txt ./skin_list.txt
+# Copy detector module and model from root context
+COPY python/detector.py ./python/detector.py
+COPY models/my_model/train/weights/best.pt ./models/my_model/train/weights/best.pt
+COPY models/my_model/train/args.yaml ./models/my_model/train/args.yaml
+COPY skin_list.txt ./skin_list.txt
 
 # Create necessary directories
 RUN mkdir -p frames uploads data
