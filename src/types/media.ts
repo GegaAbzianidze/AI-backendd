@@ -22,6 +22,8 @@ export interface Job {
   processingProgress: number;
   detectedFramesCount: number;
   currentStage: string;
+  uploadedFilePath?: string;
+  pythonProcessId?: number;
   livePreview?: {
     frameIndex: number;
     previewUrl: string;

@@ -11,15 +11,20 @@ export const uploadVideo = async (req: Request, res: Response) => {
       });
     }
 
-    const job = jobService.createJob(req.file.originalname);
-    videoService.processVideoJob(job, req.file).catch((error) => {
-      console.error('Background processing error', error);
-    });
+    const job = jobService.createJob(req.file.originalname, req.file.path);
+    
+    // Only start processing if job is not queued
+    if (job.status !== 'queued') {
+      videoService.processVideoJob(job, req.file).catch((error) => {
+        console.error('Background processing error', error);
+      });
+    }
 
     return res.status(202).json({
       success: true,
       jobId: job.id,
       videoId: job.videoId,
+      status: job.status,
     });
   } catch (error) {
     console.error('Video processing failed', error);

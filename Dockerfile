@@ -41,7 +41,7 @@ COPY models/my_model/train/args.yaml ./models/my_model/train/args.yaml
 RUN npm install typescript && npm run build && npm uninstall typescript
 
 # Create necessary directories
-RUN mkdir -p uploads frames data
+RUN mkdir -p uploads frames jobs data
 
 # Environment variables
 ENV NODE_ENV=production \

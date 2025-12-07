@@ -37,10 +37,16 @@ pip-delete-this-directory.txt
 htmlcov/
 
 # Uploads and temporary files
-uploads/*
-!uploads/.gitkeep
-frames/*
-!frames/.gitkeep
+uploads/
+frames/
+data/
+
+# Keep .gitkeep files
+!**/.gitkeep
+
+# Job folders
+jobs/*/
+jobs/*.json
 
 # Logs
 *.log
@@ -99,14 +105,18 @@ temp/
 .railway/
 fly.toml.backup
 
-# Model training outputs (keep only best.pt and args.yaml)
-models/my_model/train/*.jpg
-models/my_model/train/*.png
-models/my_model/train/*.csv
+# Model training outputs (keep only best.pt)
+models/my_model/train/**/*.jpg
+models/my_model/train/**/*.png
+models/my_model/train/**/*.csv
+models/my_model/train/**/*.yaml
 models/my_model/train/weights/last.pt
 models/my_model/*.mp4
 models/my_model/*.py
-models/my_model/*.pt
+models/my_model/my_model.pt
+
+# Keep only the trained model
+!models/my_model/train/weights/best.pt
 
 # Cache directories
 .cache/
@@ -118,3 +128,7 @@ out/
 *.pem
 *.key
 .env.backup
+
+# Deployment
+*.tar.gz
+backup-*.tar.gz

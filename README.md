@@ -6,6 +6,8 @@ AI-powered video processing backend with YOLO detection, OCR, and multi-job queu
 
 - **Multi-job processing** - Process up to 3 videos simultaneously
 - **Automatic queueing** - Jobs auto-queue when at capacity
+- **Job persistence** - Jobs saved to disk, survive restarts
+- **Data management** - Delete jobs and all associated files
 - **YOLO detection** - AI object detection on video frames
 - **OCR processing** - Text extraction with EasyOCR
 - **Real-time monitoring** - Live progress tracking and preview
@@ -30,6 +32,9 @@ AI backend/
 │   ├── detector.py        # YOLO + OCR logic
 │   └── requirements.txt   # Python dependencies
 ├── models/                 # YOLO model weights
+├── data/                   # Job persistence (jobs.json)
+├── uploads/                # Uploaded videos
+├── frames/                 # Extracted frames & results
 ├── Dockerfile             # Docker configuration
 ├── package.json           # Node.js dependencies
 ├── tsconfig.json          # TypeScript config
@@ -119,7 +124,17 @@ All endpoints require `X-API-Key` header.
 |--------|------|-------------|
 | `GET` | `/api/skins/refined?videoId=xxx` | Get refined detection results |
 
-**Full API documentation:** [APIPath.md](./APIPath.md)
+**Full API documentation:** [APIPath.md](./APIPath.md) or visit `/docs.html`
+
+---
+
+## 🚀 Deploy to Hetzner Cloud
+
+**⚡ Quick Deploy (5 minutes):** [QUICK_DEPLOY.md](QUICK_DEPLOY.md)
+
+**📖 Complete Guide:** [DEPLOYMENT.md](DEPLOYMENT.md)
+
+**Auto-Deploy Script:** Run `deploy.sh` on your server for automated setup!
 
 ## 🧪 Testing
 

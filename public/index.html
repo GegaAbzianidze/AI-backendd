@@ -52,6 +52,11 @@
       align-items: center;
     }
 
+    header a:hover {
+      color: var(--accent) !important;
+      background-color: rgba(59, 130, 246, 0.1);
+    }
+
     .header-left {
       display: flex;
       flex-direction: column;
@@ -265,6 +270,64 @@
       color: var(--text-secondary);
     }
 
+    .job-actions {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: 0.5rem;
+    }
+
+    .btn-terminate,
+    .btn-delete {
+      background-color: var(--error);
+      color: white;
+      padding: 0.5rem 1rem;
+      border: none;
+      border-radius: 0.375rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-terminate:hover,
+    .btn-delete:hover {
+      background-color: #dc2626;
+      transform: translateY(-1px);
+    }
+
+    .btn-view {
+      background-color: var(--accent);
+      color: white;
+      padding: 0.5rem 1rem;
+      border: none;
+      border-radius: 0.375rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-view:hover {
+      background-color: var(--accent-hover);
+      transform: translateY(-1px);
+    }
+
+    .btn-secondary {
+      background-color: var(--bg-tertiary);
+      color: var(--text-primary);
+      padding: 0.5rem 1rem;
+      border: 1px solid var(--border);
+      border-radius: 0.375rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-secondary:hover {
+      background-color: var(--border);
+    }
+
     .empty-state {
       text-align: center;
       padding: 4rem 2rem;
@@ -373,10 +436,23 @@
 
   <header>
     <div class="header-left">
-      <h1>AI Backend Dashboard</h1>
-      <div class="header-subtitle">Manage and monitor video processing jobs</div>
+      <div style="display: flex; align-items: center; gap: 1rem;">
+        <div style="width: 48px; height: 48px; background: linear-gradient(135deg, var(--accent), #8b5cf6); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.75rem;">
+          🤖
+        </div>
+        <div>
+          <h1>AI Backend Dashboard</h1>
+          <div class="header-subtitle">Manage and monitor video processing jobs</div>
+        </div>
+      </div>
     </div>
     <div class="header-right">
+      <a href="/docs.html" style="color: var(--text-secondary); text-decoration: none; font-weight: 600; font-size: 0.875rem; display: flex; align-items: center; gap: 0.5rem; transition: all 0.2s; padding: 0.5rem 1rem; border-radius: 0.375rem; background-color: var(--bg-tertiary);">
+        📚 Docs
+      </a>
+      <a href="/status.html" style="color: var(--text-secondary); text-decoration: none; font-weight: 600; font-size: 0.875rem; display: flex; align-items: center; gap: 0.5rem; transition: all 0.2s; padding: 0.5rem 1rem; border-radius: 0.375rem; background-color: var(--bg-tertiary);">
+        📊 Status
+      </a>
       <div class="stats-container">
         <div class="stat-item">
           <div class="stat-value running" id="running-count">0</div>
@@ -424,6 +500,7 @@
       localStorage.setItem('apiKey', apiKey);
       apiKeyPrompt.style.display = 'none';
       loadJobs();
+      startPolling();
     });
 
     function getAuthHeaders() {
@@ -528,29 +605,97 @@
                         job.status === 'completed' ? 100 : 0;
         
         const timeAgo = getTimeAgo(new Date(job.createdAt));
+        const canTerminate = job.status !== 'completed' && job.status !== 'error';
+        const queuePosition = job.status === 'queued' ? getQueuePosition(jobs, job.id) : null;
         
         return `
-          <div class="job-card" onclick="openJob('${job.id}')">
-            <div class="job-header">
+          <div class="job-card">
+            <div class="job-header" onclick="openJob('${job.id}')">
               <div class="job-info">
                 <div class="job-title">${escapeHtml(job.originalFileName)}</div>
                 <div class="job-id">${job.id.substring(0, 8)}...</div>
               </div>
               <div class="status-badge ${job.status}">${job.status}</div>
             </div>
-            <div class="job-stage">${escapeHtml(job.currentStage)}</div>
-            ${job.status !== 'queued' ? `
-              <div class="progress-bar">
+            <div class="job-stage" onclick="openJob('${job.id}')">${escapeHtml(job.currentStage)}</div>
+            ${job.status === 'queued' && queuePosition !== null ? `
+              <div style="background: rgba(139, 92, 246, 0.2); padding: 0.5rem; border-radius: 0.375rem; font-size: 0.875rem; color: var(--queued);">
+                📋 Queue position: #${queuePosition}
+              </div>
+            ` : job.status !== 'queued' ? `
+              <div class="progress-bar" onclick="openJob('${job.id}')">
                 <div class="progress-fill" style="width: ${progress}%"></div>
               </div>
             ` : ''}
-            <div class="job-meta">
+            <div class="job-meta" onclick="openJob('${job.id}')">
               <span>${timeAgo}</span>
               ${job.detectedFramesCount > 0 ? `<span>${job.detectedFramesCount} frames detected</span>` : ''}
+            </div>
+            <div class="job-actions">
+              <button class="btn-view" onclick="event.stopPropagation(); openJob('${job.id}')">View Details</button>
+              ${canTerminate ? `
+                <button class="btn-terminate" onclick="event.stopPropagation(); terminateJob('${job.id}')">Terminate</button>
+              ` : job.status === 'completed' || job.status === 'error' ? `
+                <button class="btn-delete" onclick="event.stopPropagation(); deleteJob('${job.id}')">Delete</button>
+              ` : ''}
             </div>
           </div>
         `;
       }).join('');
+    }
+
+    function getQueuePosition(jobs, jobId) {
+      const queuedJobs = jobs
+        .filter(j => j.status === 'queued')
+        .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+      
+      return queuedJobs.findIndex(j => j.id === jobId) + 1;
+    }
+
+    async function terminateJob(jobId) {
+      if (!confirm('Are you sure you want to terminate this job?')) {
+        return;
+      }
+
+      try {
+        const response = await fetch(`/api/jobs/${jobId}/terminate`, {
+          method: 'POST',
+          headers: getAuthHeaders(),
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to terminate job');
+        }
+
+        // Reload jobs list
+        await loadJobs();
+      } catch (error) {
+        console.error('Error terminating job:', error);
+        alert('Failed to terminate job');
+      }
+    }
+
+    async function deleteJob(jobId) {
+      if (!confirm('⚠️ This will permanently delete the job and all associated data (videos, frames, results). Continue?')) {
+        return;
+      }
+
+      try {
+        const response = await fetch(`/api/jobs/${jobId}`, {
+          method: 'DELETE',
+          headers: getAuthHeaders(),
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to delete job');
+        }
+
+        // Reload jobs list
+        await loadJobs();
+      } catch (error) {
+        console.error('Error deleting job:', error);
+        alert('Failed to delete job');
+      }
     }
 
     function openJob(jobId) {

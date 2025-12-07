@@ -199,6 +199,129 @@ video: <file> (video file)
 
 ---
 
+#### `POST /api/jobs/{jobId}/terminate`
+**Description:** Terminate a running or queued job  
+**Authentication:** Required  
+**URL Parameters:**
+- `jobId` - UUID of the job to terminate
+
+**Response:** `200 OK`
+```json
+{
+  "success": true,
+  "message": "Job terminated successfully"
+}
+```
+
+**Error Response:** `400 Bad Request`
+```json
+{
+  "success": false,
+  "message": "Cannot terminate job. Job may be already completed or not found."
+}
+```
+
+**Possible Status:**
+- `200` - Job terminated successfully
+- `400` - Cannot terminate (already completed or not found)
+- `401` - Invalid or missing API key
+
+**Notes:**
+- Cannot terminate jobs that are already `completed` or `error` status
+- Terminating a job will automatically start the next queued job (if any)
+- Job is marked as `error` with message "terminated by user"
+
+---
+
+#### `DELETE /api/jobs/{jobId}`
+**Description:** Delete a job and all associated data (videos, frames, results)  
+**Authentication:** Required  
+**URL Parameters:**
+- `jobId` - UUID of the job to delete
+
+**Response:** `200 OK`
+```json
+{
+  "success": true,
+  "message": "Job and all associated data deleted successfully"
+}
+```
+
+**Error Response:** `404 Not Found`
+```json
+{
+  "success": false,
+  "message": "Job not found"
+}
+```
+
+**Possible Status:**
+- `200` - Job and data deleted successfully
+- `404` - Job not found
+- `500` - Failed to delete data
+- `401` - Invalid or missing API key
+
+**What Gets Deleted:**
+- Job metadata from storage
+- Uploaded video file
+- All extracted frames
+- Detection results (JSON)
+- Live preview images
+- All data in `frames/{videoId}/` directory
+
+**Notes:**
+- This is a permanent deletion - cannot be undone
+- Recommended to only delete `completed` or `error` jobs
+- Best practice: Keep completed jobs for a retention period
+
+---
+
+### 📂 Job Files Endpoints
+
+#### `GET /api/job-files/{jobId}/items.json`
+**Description:** Download the detection results JSON for a completed job  
+**Authentication:** Required  
+**URL Parameters:**
+- `jobId` - UUID of the job
+
+**Response:** `200 OK` (application/json)
+```json
+[
+  {
+    "frameIndex": 1,
+    "items": [
+      {
+        "name": "PRIMORDIUM VANDAL",
+        "owned": "owned",
+        "equipped": true
+      }
+    ]
+  }
+]
+```
+
+**Possible Status:**
+- `200` - File found and returned
+- `404` - Job or file not found
+- `401` - Invalid or missing API key
+
+---
+
+#### `GET /api/job-files/{jobId}/preview.jpg`
+**Description:** Download the preview image for a completed job  
+**Authentication:** Required  
+**URL Parameters:**
+- `jobId` - UUID of the job
+
+**Response:** `200 OK` (image/jpeg)
+
+**Possible Status:**
+- `200` - Image found and returned
+- `404` - Job or image not found
+- `401` - Invalid or missing API key
+
+---
+
 ### 🎨 Skin Detection Endpoints
 
 #### `GET /api/skins/refined?videoId={videoId}`
@@ -307,6 +430,31 @@ curl http://localhost:3000/api/jobs \
 ```bash
 curl http://localhost:3000/api/jobs/550e8400-e29b-41d4-a716-446655440000/status \
   -H "X-API-Key: change-me-in-production"
+```
+
+**Terminate a job:**
+```bash
+curl -X POST http://localhost:3000/api/jobs/550e8400-e29b-41d4-a716-446655440000/terminate \
+  -H "X-API-Key: change-me-in-production"
+```
+
+**Delete a job:**
+```bash
+curl -X DELETE http://localhost:3000/api/jobs/550e8400-e29b-41d4-a716-446655440000 \
+  -H "X-API-Key: change-me-in-production"
+```
+
+**Get job's items.json:**
+```bash
+curl http://localhost:3000/api/job-files/550e8400-e29b-41d4-a716-446655440000/items.json \
+  -H "X-API-Key: change-me-in-production"
+```
+
+**Get job's preview image:**
+```bash
+curl http://localhost:3000/api/job-files/550e8400-e29b-41d4-a716-446655440000/preview.jpg \
+  -H "X-API-Key: change-me-in-production" \
+  --output preview.jpg
 ```
 
 **Get video items:**

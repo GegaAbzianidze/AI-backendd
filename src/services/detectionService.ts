@@ -16,6 +16,7 @@ interface RunDetectionOptions {
   onProgress?: (processedFrames: number) => void;
   onStageChange?: (stage: DetectionStage) => void;
   onFramePreview?: (frame: { frameIndex: number; items: Array<{ name: string; owned?: OwnershipStatus; equipped?: boolean }>; processingTime?: number; videoTime?: number }) => void;
+  onProcessStart?: (pid: number) => void;
 }
 
 const detectorScript = path.join(__dirname, '..', '..', 'python', 'detector.py');
@@ -29,6 +30,7 @@ export const runDetections = async ({
   onProgress,
   onStageChange,
   onFramePreview,
+  onProcessStart,
 }: RunDetectionOptions): Promise<FrameItems[]> =>
   new Promise((resolve, reject) => {
     const args = [
@@ -54,6 +56,11 @@ export const runDetections = async ({
     const python = spawn(env.pythonExecutable, args, {
       stdio: ['ignore', 'pipe', 'pipe'],
     });
+
+    // Notify about process start with PID
+    if (python.pid) {
+      onProcessStart?.(python.pid);
+    }
 
     const stdoutReader = readline.createInterface({ input: python.stdout });
     stdoutReader.on('line', (line) => {

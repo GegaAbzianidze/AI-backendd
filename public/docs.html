@@ -1,0 +1,906 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>API Documentation - AI Backend</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      --bg-primary: #0f172a;
+      --bg-secondary: #1e293b;
+      --bg-tertiary: #334155;
+      --text-primary: #f1f5f9;
+      --text-secondary: #94a3b8;
+      --accent: #3b82f6;
+      --accent-hover: #2563eb;
+      --border: #334155;
+      --success: #10b981;
+      --error: #ef4444;
+      --warning: #f59e0b;
+      --sidebar-width: 280px;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background-color: var(--bg-primary);
+      color: var(--text-primary);
+      line-height: 1.6;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+
+    /* Header */
+    header {
+      background-color: var(--bg-secondary);
+      border-bottom: 1px solid var(--border);
+      padding: 1rem 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      text-decoration: none;
+      color: var(--text-primary);
+      font-size: 1.25rem;
+      font-weight: 700;
+    }
+
+    .logo-icon {
+      width: 36px;
+      height: 36px;
+      background: linear-gradient(135deg, var(--accent), #8b5cf6);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 1.5rem;
+    }
+
+    .nav-links a {
+      color: var(--text-secondary);
+      text-decoration: none;
+      font-weight: 500;
+      transition: color 0.2s;
+    }
+
+    .nav-links a:hover {
+      color: var(--text-primary);
+    }
+
+    .nav-links a.active {
+      color: var(--accent);
+    }
+
+    /* Layout */
+    .docs-container {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    /* Sidebar */
+    .sidebar {
+      width: var(--sidebar-width);
+      background-color: var(--bg-secondary);
+      border-right: 1px solid var(--border);
+      overflow-y: auto;
+      padding: 1.5rem 0;
+    }
+
+    .sidebar-section {
+      margin-bottom: 1.5rem;
+    }
+
+    .sidebar-title {
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-secondary);
+      padding: 0 1.5rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .sidebar-link {
+      display: block;
+      padding: 0.5rem 1.5rem;
+      color: var(--text-secondary);
+      text-decoration: none;
+      transition: all 0.2s;
+      font-size: 0.875rem;
+    }
+
+    .sidebar-link:hover {
+      background-color: var(--bg-tertiary);
+      color: var(--text-primary);
+    }
+
+    .sidebar-link.active {
+      background-color: rgba(59, 130, 246, 0.1);
+      color: var(--accent);
+      border-left: 3px solid var(--accent);
+    }
+
+    /* Content */
+    .content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 2rem 3rem;
+      max-width: 900px;
+    }
+
+    .content h1 {
+      font-size: 2.5rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .content h2 {
+      font-size: 1.75rem;
+      margin-top: 3rem;
+      margin-bottom: 1rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .content h3 {
+      font-size: 1.25rem;
+      margin-top: 2rem;
+      margin-bottom: 0.75rem;
+      color: var(--accent);
+    }
+
+    .content p {
+      margin-bottom: 1rem;
+      color: var(--text-secondary);
+    }
+
+    .content ul, .content ol {
+      margin-bottom: 1rem;
+      padding-left: 1.5rem;
+      color: var(--text-secondary);
+    }
+
+    .content li {
+      margin-bottom: 0.5rem;
+    }
+
+    /* Code Blocks */
+    .code-block {
+      background-color: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 0.5rem;
+      margin: 1rem 0;
+      overflow: hidden;
+    }
+
+    .code-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.75rem 1rem;
+      background-color: var(--bg-tertiary);
+      border-bottom: 1px solid var(--border);
+      font-size: 0.875rem;
+      color: var(--text-secondary);
+    }
+
+    .code-content {
+      padding: 1rem;
+      overflow-x: auto;
+    }
+
+    pre {
+      margin: 0;
+      font-family: 'JetBrains Mono', 'Consolas', monospace;
+      font-size: 0.875rem;
+      line-height: 1.5;
+    }
+
+    code {
+      font-family: 'JetBrains Mono', 'Consolas', monospace;
+      background-color: var(--bg-tertiary);
+      padding: 0.2rem 0.4rem;
+      border-radius: 0.25rem;
+      font-size: 0.875rem;
+    }
+
+    /* Method Badge */
+    .method {
+      display: inline-block;
+      padding: 0.25rem 0.5rem;
+      border-radius: 0.25rem;
+      font-weight: 600;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      margin-right: 0.5rem;
+    }
+
+    .method.get { background-color: rgba(16, 185, 129, 0.2); color: var(--success); }
+    .method.post { background-color: rgba(59, 130, 246, 0.2); color: var(--accent); }
+    .method.delete { background-color: rgba(239, 68, 68, 0.2); color: var(--error); }
+
+    /* Info Box */
+    .info-box {
+      background-color: rgba(59, 130, 246, 0.1);
+      border-left: 3px solid var(--accent);
+      padding: 1rem;
+      margin: 1rem 0;
+      border-radius: 0.25rem;
+    }
+
+    .warning-box {
+      background-color: rgba(245, 158, 11, 0.1);
+      border-left: 3px solid var(--warning);
+      padding: 1rem;
+      margin: 1rem 0;
+      border-radius: 0.25rem;
+    }
+
+    /* Table */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 1rem 0;
+    }
+
+    th, td {
+      text-align: left;
+      padding: 0.75rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    th {
+      font-weight: 600;
+      color: var(--text-primary);
+      background-color: var(--bg-secondary);
+    }
+
+    td {
+      color: var(--text-secondary);
+    }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: var(--bg-primary);
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: var(--bg-tertiary);
+      border-radius: 4px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--border);
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <a href="/" class="logo">
+      <div class="logo-icon">🤖</div>
+      <span>AI Backend</span>
+    </a>
+    <nav class="nav-links">
+      <a href="/">Dashboard</a>
+      <a href="/docs.html" class="active">Docs</a>
+      <a href="/status.html">Status</a>
+    </nav>
+  </header>
+
+  <div class="docs-container">
+    <aside class="sidebar">
+      <div class="sidebar-section">
+        <div class="sidebar-title">Getting Started</div>
+        <a href="#introduction" class="sidebar-link">Introduction</a>
+        <a href="#authentication" class="sidebar-link">Authentication</a>
+        <a href="#quick-start" class="sidebar-link">Quick Start</a>
+      </div>
+
+      <div class="sidebar-section">
+        <div class="sidebar-title">API Reference</div>
+        <a href="#upload-video" class="sidebar-link">Upload Video</a>
+        <a href="#list-jobs" class="sidebar-link">List Jobs</a>
+        <a href="#job-status" class="sidebar-link">Job Status</a>
+        <a href="#terminate-job" class="sidebar-link">Terminate Job</a>
+        <a href="#delete-job" class="sidebar-link">Delete Job</a>
+        <a href="#job-files" class="sidebar-link">Job Files</a>
+        <a href="#status-endpoints" class="sidebar-link">Status & Monitoring</a>
+      </div>
+
+      <div class="sidebar-section">
+        <div class="sidebar-title">Features</div>
+        <a href="#queue-system" class="sidebar-link">Queue System</a>
+        <a href="#job-lifecycle" class="sidebar-link">Job Lifecycle</a>
+        <a href="#error-handling" class="sidebar-link">Error Handling</a>
+      </div>
+
+      <div class="sidebar-section">
+        <div class="sidebar-title">Advanced</div>
+        <a href="#webhooks" class="sidebar-link">Rate Limits</a>
+        <a href="#best-practices" class="sidebar-link">Best Practices</a>
+      </div>
+    </aside>
+
+    <main class="content">
+      <h1 id="introduction">📚 API Documentation</h1>
+      <p>Complete guide for the AI Backend video processing API with YOLO detection and OCR capabilities.</p>
+
+      <h2 id="authentication">🔐 Authentication</h2>
+      <p>All API requests require an API key to be included in the headers.</p>
+
+      <div class="code-block">
+        <div class="code-header">
+          <span>Headers</span>
+        </div>
+        <div class="code-content">
+          <pre>X-API-Key: your-api-key-here</pre>
+        </div>
+      </div>
+
+      <div class="info-box">
+        <strong>💡 Tip:</strong> Set your API key in the <code>.env</code> file using <code>API_KEY=your-secret-key</code>
+      </div>
+
+      <h2 id="quick-start">🚀 Quick Start</h2>
+      <h3>1. Upload a Video</h3>
+      <div class="code-block">
+        <div class="code-header">
+          <span>cURL</span>
+        </div>
+        <div class="code-content">
+          <pre>curl -X POST http://localhost:3000/api/videos/upload \
+  -H "X-API-Key: your-api-key" \
+  -F "video=@your-video.mp4"</pre>
+        </div>
+      </div>
+
+      <h3>2. Check Job Status</h3>
+      <div class="code-block">
+        <div class="code-header">
+          <span>cURL</span>
+        </div>
+        <div class="code-content">
+          <pre>curl http://localhost:3000/api/jobs/JOB_ID/status \
+  -H "X-API-Key: your-api-key"</pre>
+        </div>
+      </div>
+
+      <h3>3. Download Results</h3>
+      <div class="code-block">
+        <div class="code-header">
+          <span>cURL</span>
+        </div>
+        <div class="code-content">
+          <pre>curl http://localhost:3000/api/job-files/JOB_ID/items.json \
+  -H "X-API-Key: your-api-key"</pre>
+        </div>
+      </div>
+
+      <h2 id="upload-video">📤 Upload Video</h2>
+      <p><span class="method post">POST</span><code>/api/videos/upload</code></p>
+      <p>Upload a video file for processing. Supports concurrent processing of up to 3 videos.</p>
+
+      <h3>Request</h3>
+      <table>
+        <tr>
+          <th>Parameter</th>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+        <tr>
+          <td><code>video</code></td>
+          <td>File</td>
+          <td>Video file (mp4, mov, webm, mkv, avi). Max 500MB.</td>
+        </tr>
+      </table>
+
+      <h3>Response</h3>
+      <div class="code-block">
+        <div class="code-header">
+          <span>JSON</span>
+        </div>
+        <div class="code-content">
+          <pre>{
+  "success": true,
+  "jobId": "550e8400-e29b-41d4-a716-446655440000",
+  "videoId": "7b3c9d12-a456-4def-8901-234567890abc",
+  "status": "processing"  // or "queued"
+}</pre>
+        </div>
+      </div>
+
+      <div class="warning-box">
+        <strong>⚠️ Queue System:</strong> If 3 jobs are already processing, new uploads will be queued automatically.
+      </div>
+
+      <h2 id="list-jobs">📋 List All Jobs</h2>
+      <p><span class="method get">GET</span><code>/api/jobs</code></p>
+      <p>Retrieve all jobs with their current status and statistics.</p>
+
+      <h3>Response</h3>
+      <div class="code-block">
+        <div class="code-header">
+          <span>JSON</span>
+        </div>
+        <div class="code-content">
+          <pre>{
+  "success": true,
+  "jobs": [
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440000",
+      "videoId": "7b3c9d12-a456-4def-8901-234567890abc",
+      "originalFileName": "video.mp4",
+      "status": "processing",
+      "uploadProgress": 100,
+      "processingProgress": 45,
+      "detectedFramesCount": 67,
+      "currentStage": "working with ai",
+      "createdAt": "2025-12-07T10:30:00.000Z",
+      "updatedAt": "2025-12-07T10:31:23.000Z"
+    }
+  ],
+  "stats": {
+    "running": 2,
+    "queued": 1,
+    "maxConcurrent": 3,
+    "availableSlots": 1
+  }
+}</pre>
+        </div>
+      </div>
+
+      <h2 id="job-status">📊 Get Job Status</h2>
+      <p><span class="method get">GET</span><code>/api/jobs/:id/status</code></p>
+      <p>Get detailed status information for a specific job.</p>
+
+      <h3>Response</h3>
+      <div class="code-block">
+        <div class="code-header">
+          <span>JSON</span>
+        </div>
+        <div class="code-content">
+          <pre>{
+  "success": true,
+  "job": {
+    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "status": "processing",
+    "processingProgress": 45,
+    "currentStage": "working with ai",
+    "livePreview": {
+      "frameIndex": 67,
+      "previewUrl": "/frames/VIDEO_ID/live-preview.jpg",
+      "items": [
+        {
+          "name": "PRIMORDIUM VANDAL",
+          "owned": "owned",
+          "equipped": true
+        }
+      ],
+      "processingTime": 0.123,
+      "videoTime": 9.57,
+      "updatedAt": "2025-12-07T10:31:23.000Z"
+    }
+  }
+}</pre>
+        </div>
+      </div>
+
+      <h3>Status Values</h3>
+      <table>
+        <tr>
+          <th>Status</th>
+          <th>Description</th>
+        </tr>
+        <tr>
+          <td><code>queued</code></td>
+          <td>Job is waiting for an available processing slot</td>
+        </tr>
+        <tr>
+          <td><code>uploading</code></td>
+          <td>Video file is being uploaded</td>
+        </tr>
+        <tr>
+          <td><code>processing</code></td>
+          <td>Job is actively being processed (AI + OCR)</td>
+        </tr>
+        <tr>
+          <td><code>completed</code></td>
+          <td>Job finished successfully</td>
+        </tr>
+        <tr>
+          <td><code>error</code></td>
+          <td>Job failed or was terminated</td>
+        </tr>
+      </table>
+
+      <h2 id="terminate-job">⏹️ Terminate Job</h2>
+      <p><span class="method post">POST</span><code>/api/jobs/:id/terminate</code></p>
+      <p>Stop a running or queued job immediately. The Python AI process will be killed.</p>
+
+      <h3>Response</h3>
+      <div class="code-block">
+        <div class="code-header">
+          <span>JSON</span>
+        </div>
+        <div class="code-content">
+          <pre>{
+  "success": true,
+  "message": "Job terminated successfully"
+}</pre>
+        </div>
+      </div>
+
+      <div class="info-box">
+        <strong>💡 Auto-Queue:</strong> When a job is terminated, the next queued job starts automatically.
+      </div>
+
+      <h2 id="delete-job">🗑️ Delete Job</h2>
+      <p><span class="method delete">DELETE</span><code>/api/jobs/:id</code></p>
+      <p>Permanently delete a job and all associated data.</p>
+
+      <h3>What Gets Deleted</h3>
+      <ul>
+        <li>Job metadata folder (<code>jobs/{jobId}/</code>)</li>
+        <li>Uploaded video file (<code>uploads/{videoId}.mp4</code>)</li>
+        <li>All extracted frames (<code>frames/{videoId}/</code>)</li>
+        <li>Detection results (items.json)</li>
+        <li>Preview images</li>
+      </ul>
+
+      <div class="warning-box">
+        <strong>⚠️ Warning:</strong> This operation is permanent and cannot be undone!
+      </div>
+
+      <h2 id="job-files">📂 Job Files</h2>
+      
+      <h3>Get Detection Results</h3>
+      <p><span class="method get">GET</span><code>/api/job-files/:id/items.json</code></p>
+      <p>Download the complete detection results for a completed job.</p>
+
+      <div class="code-block">
+        <div class="code-header">
+          <span>Response: items.json</span>
+        </div>
+        <div class="code-content">
+          <pre>[
+  {
+    "frameIndex": 1,
+    "items": [
+      {
+        "name": "PRIMORDIUM VANDAL",
+        "owned": "owned",
+        "equipped": true
+      },
+      {
+        "name": "EXO VANDAL",
+        "owned": "owned",
+        "equipped": false
+      }
+    ]
+  },
+  {
+    "frameIndex": 2,
+    "items": [...]
+  }
+]</pre>
+        </div>
+      </div>
+
+      <h3>Get Preview Image</h3>
+      <p><span class="method get">GET</span><code>/api/job-files/:id/preview.jpg</code></p>
+      <p>Download the preview image showing detected items.</p>
+
+      <h2 id="queue-system">🔄 Queue System</h2>
+      <p>The API processes up to <strong>3 videos simultaneously</strong>. Additional uploads are queued automatically.</p>
+
+      <h3>How It Works</h3>
+      <ol>
+        <li>Upload video → Check available slots</li>
+        <li>If slots available (< 3 running) → Start processing immediately</li>
+        <li>If all slots busy (3 running) → Add to queue</li>
+        <li>When job completes/terminates → Start next queued job</li>
+      </ol>
+
+      <div class="info-box">
+        <strong>💡 Queue Position:</strong> Jobs are processed in FIFO (First In, First Out) order.
+      </div>
+
+      <h2 id="job-lifecycle">📈 Job Lifecycle</h2>
+      
+      <div class="code-block">
+        <div class="code-header">
+          <span>Job Flow</span>
+        </div>
+        <div class="code-content">
+          <pre>1. QUEUED (if 3 jobs running)
+   ↓
+2. UPLOADING (file transfer)
+   ↓
+3. PROCESSING
+   ├─ Splitting frames (20%)
+   ├─ AI Detection (30%)
+   ├─ OCR Processing (50%)
+   └─ Finalizing results
+   ↓
+4. COMPLETED
+
+Alternative paths:
+- QUEUED → TERMINATED
+- PROCESSING → TERMINATED
+- PROCESSING → ERROR</pre>
+        </div>
+      </div>
+
+      <h2 id="error-handling">⚠️ Error Handling</h2>
+      
+      <h3>HTTP Status Codes</h3>
+      <table>
+        <tr>
+          <th>Code</th>
+          <th>Meaning</th>
+        </tr>
+        <tr>
+          <td><code>200</code></td>
+          <td>Success</td>
+        </tr>
+        <tr>
+          <td><code>202</code></td>
+          <td>Accepted (job created)</td>
+        </tr>
+        <tr>
+          <td><code>400</code></td>
+          <td>Bad Request (invalid input)</td>
+        </tr>
+        <tr>
+          <td><code>401</code></td>
+          <td>Unauthorized (invalid API key)</td>
+        </tr>
+        <tr>
+          <td><code>404</code></td>
+          <td>Not Found (job doesn't exist)</td>
+        </tr>
+        <tr>
+          <td><code>500</code></td>
+          <td>Server Error</td>
+        </tr>
+      </table>
+
+      <h3>Error Response Format</h3>
+      <div class="code-block">
+        <div class="code-header">
+          <span>JSON</span>
+        </div>
+        <div class="code-content">
+          <pre>{
+  "success": false,
+  "message": "Detailed error message"
+}</pre>
+        </div>
+      </div>
+
+      <h2 id="best-practices">✨ Best Practices</h2>
+      
+      <h3>1. Poll for Updates</h3>
+      <p>Poll the job status endpoint every 2-3 seconds to get real-time updates.</p>
+
+      <div class="code-block">
+        <div class="code-header">
+          <span>JavaScript Example</span>
+        </div>
+        <div class="code-content">
+          <pre>const pollJob = async (jobId) => {
+  const interval = setInterval(async () => {
+    const res = await fetch(`/api/jobs/${jobId}/status`, {
+      headers: { 'X-API-Key': 'your-key' }
+    });
+    const { job } = await res.json();
+    
+    if (job.status === 'completed') {
+      clearInterval(interval);
+      // Download results
+    }
+  }, 2000);
+};</pre>
+        </div>
+      </div>
+
+      <h3>2. Handle Queued Jobs</h3>
+      <p>Check the job status after upload. If <code>status === 'queued'</code>, inform the user about the queue position.</p>
+
+      <h3>3. Clean Up Old Jobs</h3>
+      <p>Delete completed jobs regularly to save disk space:</p>
+
+      <div class="code-block">
+        <div class="code-header">
+          <span>cURL</span>
+        </div>
+        <div class="code-content">
+          <pre>curl -X DELETE http://localhost:3000/api/jobs/JOB_ID \
+  -H "X-API-Key: your-key"</pre>
+        </div>
+      </div>
+
+      <h3>4. Video Recommendations</h3>
+      <ul>
+        <li>Max file size: 500MB</li>
+        <li>Supported formats: MP4, MOV, WebM, MKV, AVI</li>
+        <li>Recommended: 720p or 1080p resolution</li>
+        <li>Frame rate: 30-60 FPS</li>
+      </ul>
+
+      <div class="info-box">
+        <strong>💡 Performance Tip:</strong> Videos are processed at 7 FPS. Every other frame is skipped for efficiency.
+      </div>
+
+      <h2 id="status-endpoints">📊 Status & Monitoring</h2>
+      
+      <h3>Health Check</h3>
+      <p><span class="method get">GET</span><code>/api/status/health</code></p>
+      <p>Simple health check endpoint for monitoring services.</p>
+
+      <h3>Response</h3>
+      <div class="code-block">
+        <div class="code-header">
+          <span>JSON</span>
+        </div>
+        <div class="code-content">
+          <pre>{
+  "success": true,
+  "status": "healthy",
+  "timestamp": "2025-12-07T10:30:00.000Z",
+  "uptime": 3600.5
+}</pre>
+        </div>
+      </div>
+
+      <h3>System Status</h3>
+      <p><span class="method get">GET</span><code>/api/status/system</code></p>
+      <p>Get comprehensive system status including CPU, memory, disk, jobs, and configuration.</p>
+
+      <h3>Response</h3>
+      <div class="code-block">
+        <div class="code-header">
+          <span>JSON (Abbreviated)</span>
+        </div>
+        <div class="code-content">
+          <pre>{
+  "success": true,
+  "timestamp": "2025-12-07T10:30:00.000Z",
+  "system": {
+    "platform": "win32",
+    "arch": "x64",
+    "hostname": "MY-PC",
+    "uptime": 3600.5,
+    "nodeVersion": "v20.10.0"
+  },
+  "cpu": {
+    "model": "Intel Core i7",
+    "cores": 8,
+    "usage": { "user": 1234567, "system": 987654 }
+  },
+  "memory": {
+    "total": 17179869184,
+    "free": 8589934592,
+    "used": 8589934592,
+    "usagePercent": 50.0
+  },
+  "disk": {
+    "uploads": 1073741824,
+    "frames": 2147483648,
+    "jobs": 104857600,
+    "total": 3326083072
+  },
+  "jobs": {
+    "total": 10,
+    "queued": 1,
+    "processing": 2,
+    "uploading": 0,
+    "completed": 6,
+    "error": 1
+  },
+  "queue": {
+    "running": 2,
+    "queued": 1,
+    "maxConcurrent": 3,
+    "availableSlots": 1
+  },
+  "pythonProcesses": [
+    {
+      "jobId": "550e8400-e29b-41d4-a716-446655440000",
+      "pid": 12345,
+      "stage": "working with ai"
+    }
+  ],
+  "config": { ... }
+}</pre>
+        </div>
+      </div>
+
+      <div class="info-box">
+        <strong>💡 Monitoring:</strong> Visit <a href="/status.html" style="color: var(--accent);">/status.html</a> for a visual dashboard with auto-refresh.
+      </div>
+
+      <h2>🎉 You're Ready!</h2>
+      <p>Start building with the AI Backend API. For questions or issues, check the logs in your terminal.</p>
+
+      <div style="margin-top: 3rem; padding: 2rem; background-color: var(--bg-secondary); border-radius: 0.5rem; text-align: center;">
+        <h3>Need Help?</h3>
+        <p style="margin-bottom: 1rem;">Check out these resources:</p>
+        <div style="display: flex; gap: 1rem; justify-content: center;">
+          <a href="/" style="color: var(--accent); text-decoration: none;">Dashboard</a>
+          <span style="color: var(--text-secondary);">•</span>
+          <a href="/status.html" style="color: var(--accent); text-decoration: none;">System Status</a>
+          <span style="color: var(--text-secondary);">•</span>
+          <a href="https://github.com/ultralytics/ultralytics" style="color: var(--accent); text-decoration: none;">YOLO Docs</a>
+          <span style="color: var(--text-secondary);">•</span>
+          <a href="#introduction" style="color: var(--accent); text-decoration: none;">Back to Top</a>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    // Smooth scroll for sidebar links
+    document.querySelectorAll('.sidebar-link').forEach(link => {
+      link.addEventListener('click', (e) => {
+        e.preventDefault();
+        const targetId = link.getAttribute('href').substring(1);
+        const target = document.getElementById(targetId);
+        
+        if (target) {
+          target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          
+          // Update active link
+          document.querySelectorAll('.sidebar-link').forEach(l => l.classList.remove('active'));
+          link.classList.add('active');
+        }
+      });
+    });
+
+    // Update active link on scroll
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          const id = entry.target.getAttribute('id');
+          document.querySelectorAll('.sidebar-link').forEach(link => {
+            link.classList.remove('active');
+            if (link.getAttribute('href') === `#${id}`) {
+              link.classList.add('active');
+            }
+          });
+        }
+      });
+    }, { rootMargin: '-100px 0px -80% 0px' });
+
+    // Observe all sections
+    document.querySelectorAll('h2[id], h1[id]').forEach(section => {
+      observer.observe(section);
+    });
+  </script>
+</body>
+</html>
+

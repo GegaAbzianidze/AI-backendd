@@ -1,8 +1,60 @@
 import { randomUUID } from 'crypto';
+import fs from 'fs/promises';
+import path from 'path';
+import fsSync from 'fs';
 import { Job, JobStatus } from '../types/media';
+import { env } from '../config/env';
+import * as videoService from './videoService';
+import { logger } from './logService';
 
 const jobs = new Map<string, Job>();
 const MAX_CONCURRENT_JOBS = 3;
+
+// Load jobs from job folders on startup
+const loadJobsFromFolders = async () => {
+  try {
+    await fs.mkdir(env.jobsDir, { recursive: true });
+    const jobFolders = await fs.readdir(env.jobsDir);
+    
+    let loadedCount = 0;
+    for (const jobId of jobFolders) {
+      const metadataPath = path.join(env.jobsDir, jobId, 'metadata.json');
+      try {
+        const data = await fs.readFile(metadataPath, 'utf-8');
+        const job = JSON.parse(data) as Job;
+        
+        // Convert date strings back to Date objects
+        job.createdAt = new Date(job.createdAt);
+        job.updatedAt = new Date(job.updatedAt);
+        jobs.set(job.id, job);
+        loadedCount++;
+      } catch (error) {
+        console.warn(`Failed to load job ${jobId}:`, error);
+      }
+    }
+    
+    console.log(`📂 Loaded ${loadedCount} jobs from storage`);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+      console.error('Failed to load jobs:', error);
+    }
+  }
+};
+
+// Save job metadata to its folder
+const saveJobMetadata = async (job: Job) => {
+  try {
+    const jobDir = path.join(env.jobsDir, job.id);
+    await fs.mkdir(jobDir, { recursive: true });
+    const metadataPath = path.join(jobDir, 'metadata.json');
+    await fs.writeFile(metadataPath, JSON.stringify(job, null, 2));
+  } catch (error) {
+    console.error('Failed to save job metadata:', error);
+  }
+};
+
+// Initialize jobs from folders
+loadJobsFromFolders();
 
 const updateTimestamp = (job: Job) => {
   job.updatedAt = new Date();
@@ -27,7 +79,7 @@ const getQueuedJobs = () => {
     .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
 };
 
-export const createJob = (originalFileName: string) => {
+export const createJob = (originalFileName: string, uploadedFilePath?: string) => {
   const shouldQueue = !canStartJob();
   
   const job: Job = {
@@ -39,11 +91,23 @@ export const createJob = (originalFileName: string) => {
     processingProgress: 0,
     detectedFramesCount: 0,
     currentStage: shouldQueue ? 'queued - waiting for slot' : 'uploading video',
+    uploadedFilePath,
     createdAt: new Date(),
     updatedAt: new Date(),
   };
 
   jobs.set(job.id, job);
+  
+  // Create job folder and save metadata
+  saveJobMetadata(job).catch(err => console.error('Failed to persist new job:', err));
+  
+  // Log job creation
+  if (shouldQueue) {
+    logger.info(`Job ${job.id.substring(0, 8)} created and queued for ${originalFileName}`);
+  } else {
+    logger.success(`Job ${job.id.substring(0, 8)} created for ${originalFileName}`);
+  }
+  
   return job;
 };
 
@@ -55,6 +119,9 @@ export const updateJob = (jobId: string, payload: Partial<Omit<Job, 'id' | 'crea
 
   Object.assign(job, payload);
   updateTimestamp(job);
+  
+  // Save metadata after each update
+  saveJobMetadata(job).catch(err => console.error('Failed to persist job update:', err));
 };
 
 export const setJobStatus = (jobId: string, status: JobStatus) => {
@@ -85,18 +152,110 @@ export const getQueueStats = () => {
 };
 
 // Try to start the next queued job if there's capacity
-export const tryStartNextQueuedJob = () => {
+export const tryStartNextQueuedJob = async () => {
   if (!canStartJob()) return null;
   
   const queuedJobs = getQueuedJobs();
   if (queuedJobs.length === 0) return null;
   
   const nextJob = queuedJobs[0];
+  
+  // Check if we have the uploaded file path
+  if (!nextJob.uploadedFilePath) {
+    console.error(`Cannot start queued job ${nextJob.id}: no uploaded file path`);
+    return null;
+  }
+  
   updateJob(nextJob.id, {
-    status: 'uploading',
-    currentStage: 'ready to upload',
+    status: 'processing',
+    uploadProgress: 100,
+    currentStage: 'starting processing',
+  });
+  
+  logger.success(`Starting queued job ${nextJob.id.substring(0, 8)}`);
+  
+  // Check if file exists
+  if (!fsSync.existsSync(nextJob.uploadedFilePath)) {
+    updateJob(nextJob.id, {
+      status: 'error',
+      currentStage: 'error',
+      errorMessage: 'Uploaded file not found',
+    });
+    logger.error(`Queued job ${nextJob.id.substring(0, 8)} failed: file not found`);
+    return null;
+  }
+  
+  // Create a mock file object
+  const mockFile = {
+    path: nextJob.uploadedFilePath,
+    originalname: nextJob.originalFileName,
+  } as Express.Multer.File;
+  
+  // Start processing the queued job
+  videoService.processVideoJob(nextJob, mockFile).catch((error: Error) => {
+    logger.error(`Processing error for job ${nextJob.id.substring(0, 8)}: ${error.message}`);
   });
   
   return nextJob;
+};
+
+export const terminateJob = (jobId: string): boolean => {
+  const job = jobs.get(jobId);
+  if (!job) return false;
+  
+  // Can't terminate already completed or errored jobs
+  if (job.status === 'completed' || job.status === 'error') {
+    return false;
+  }
+  
+  // Kill Python process if it exists
+  if (job.pythonProcessId) {
+    try {
+      process.kill(job.pythonProcessId, 'SIGTERM');
+      logger.warn(`Killed Python process ${job.pythonProcessId} for job ${jobId.substring(0, 8)}`);
+    } catch (error) {
+      logger.error(`Failed to kill Python process ${job.pythonProcessId}`);
+      // Try SIGKILL as fallback
+      try {
+        process.kill(job.pythonProcessId, 'SIGKILL');
+      } catch (killError) {
+        console.warn('SIGKILL also failed:', killError);
+      }
+    }
+  }
+  
+  // Mark job as terminated
+  updateJob(jobId, {
+    status: 'error',
+    currentStage: 'terminated by user',
+    errorMessage: 'Job was manually terminated',
+    pythonProcessId: undefined,
+  });
+  
+  logger.warn(`Job ${jobId.substring(0, 8)} terminated by user`);
+  
+  // Try to start next queued job
+  tryStartNextQueuedJob();
+  
+  return true;
+};
+
+export const deleteJob = async (jobId: string): Promise<boolean> => {
+  const job = jobs.get(jobId);
+  if (!job) return false;
+  
+  // Remove from memory
+  jobs.delete(jobId);
+  
+  // Delete job folder
+  const jobDir = path.join(env.jobsDir, jobId);
+  try {
+    await fs.rm(jobDir, { recursive: true, force: true });
+    console.log(`🗑️  Deleted job folder: ${jobDir}`);
+  } catch (error) {
+    console.warn('Failed to delete job folder:', error);
+  }
+  
+  return true;
 };
 

@@ -6,6 +6,7 @@ import { FrameItems } from '../types/media';
 import { Job } from '../types/media';
 import { updateJob } from './jobService';
 import { runDetections } from './detectionService';
+import { logger } from './logService';
 
 export interface VideoMetadata {
   id: string;
@@ -81,6 +82,10 @@ export const processVideoJob = async (job: Job, file: Express.Multer.File) => {
       outputJson: itemsJson,
       totalFrames,
       previewFile,
+      onProcessStart: (pid) => {
+        updateJob(job.id, { pythonProcessId: pid });
+        console.log(`🐍 Python process started for job ${job.id}: PID ${pid}`);
+      },
       onProgress: (processed) => {
         const normalized = Math.min(processed, totalFrames) / totalFrames;
         let progress = 0;
@@ -119,6 +124,22 @@ export const processVideoJob = async (job: Job, file: Express.Multer.File) => {
     await fs.rm(rawDir, { recursive: true, force: true });
     await fs.writeFile(itemsJson, JSON.stringify(detectionResults, null, 2));
 
+    // Copy results to job folder
+    const jobDir = path.join(env.jobsDir, job.id);
+    await fs.mkdir(jobDir, { recursive: true });
+    
+    const jobItemsPath = path.join(jobDir, 'items.json');
+    const jobPreviewPath = path.join(jobDir, 'preview.jpg');
+    
+    await fs.copyFile(itemsJson, jobItemsPath);
+    
+    // Copy preview if it exists
+    try {
+      await fs.copyFile(previewFile, jobPreviewPath);
+    } catch (error) {
+      console.warn('Preview file not found, skipping copy');
+    }
+
     const metadata: VideoMetadata = {
       id: job.videoId,
       originalFileName: file.originalname,
@@ -136,17 +157,51 @@ export const processVideoJob = async (job: Job, file: Express.Multer.File) => {
       detectedFramesCount: detectionResults.length,
       currentStage: 'completed',
     });
+    
+    logger.success(`Job ${job.id.substring(0, 8)} completed: ${detectionResults.length} frames processed`);
   } catch (error) {
     console.error('Video processing failed', error);
+    const errorMessage = error instanceof Error ? error.message : 'Failed to process video';
     updateJob(job.id, {
       status: 'error',
-      errorMessage: error instanceof Error ? error.message : 'Failed to process video',
+      errorMessage,
       currentStage: 'error',
     });
+    
+    logger.error(`Job ${job.id.substring(0, 8)} failed: ${errorMessage}`);
   }
 };
 
 export const getVideo = (id: string): VideoMetadata | undefined => videos.get(id);
 
 export const getVideoItems = (id: string): FrameItems[] | undefined => videos.get(id)?.frames;
+
+export const deleteJobData = async (videoId: string, uploadedFilePath?: string): Promise<void> => {
+  const video = videos.get(videoId);
+  
+  // Try to delete uploaded video file (from video metadata or directly from path)
+  const filePath = video?.storedFilePath || uploadedFilePath;
+  if (filePath) {
+    try {
+      await fs.rm(filePath, { force: true });
+      console.log(`🗑️  Deleted video file: ${filePath}`);
+    } catch (error) {
+      console.warn('Failed to delete video file:', error);
+    }
+  }
+  
+  // Delete video from memory
+  if (video) {
+    videos.delete(videoId);
+  }
+  
+  // Delete frames directory
+  const videoDir = path.join(env.framesDir, videoId);
+  try {
+    await fs.rm(videoDir, { recursive: true, force: true });
+    console.log(`🗑️  Deleted frames directory: ${videoDir}`);
+  } catch (error) {
+    console.warn('Failed to delete frames directory:', error);
+  }
+};
 

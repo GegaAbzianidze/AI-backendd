@@ -32,6 +32,7 @@ export const env = {
   apiKey,
   uploadDir: path.join(projectRoot, 'uploads'),
   framesDir: path.join(projectRoot, 'frames'),
+  jobsDir: path.join(projectRoot, 'jobs'),
   publicDir: path.join(projectRoot, 'public'),
   pythonExecutable: process.env.PYTHON_EXECUTABLE ?? path.join(projectRoot, 'python', 'venv', process.platform === 'win32' ? 'Scripts' : 'bin', 'python'),
   yoloModelPath:
@@ -41,4 +42,5 @@ export const env = {
 
 ensureDirectory(env.uploadDir);
 ensureDirectory(env.framesDir);
+ensureDirectory(env.jobsDir);
 

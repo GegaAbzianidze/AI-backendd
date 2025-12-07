@@ -1,0 +1,704 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>System Status - AI Backend</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      --bg-primary: #0f172a;
+      --bg-secondary: #1e293b;
+      --bg-tertiary: #334155;
+      --text-primary: #f1f5f9;
+      --text-secondary: #94a3b8;
+      --accent: #3b82f6;
+      --accent-hover: #2563eb;
+      --border: #334155;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --error: #ef4444;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background-color: var(--bg-primary);
+      color: var(--text-primary);
+      line-height: 1.6;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+
+    /* Header */
+    header {
+      background-color: var(--bg-secondary);
+      border-bottom: 1px solid var(--border);
+      padding: 1rem 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      text-decoration: none;
+      color: var(--text-primary);
+      font-size: 1.25rem;
+      font-weight: 700;
+    }
+
+    .logo-icon {
+      width: 36px;
+      height: 36px;
+      background: linear-gradient(135deg, var(--accent), #8b5cf6);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 1.5rem;
+    }
+
+    .nav-links a {
+      color: var(--text-secondary);
+      text-decoration: none;
+      font-weight: 500;
+      transition: color 0.2s;
+    }
+
+    .nav-links a:hover {
+      color: var(--text-primary);
+    }
+
+    .nav-links a.active {
+      color: var(--accent);
+    }
+
+    /* Main Content */
+    main {
+      flex: 1;
+      overflow-y: auto;
+      padding: 2rem;
+    }
+
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      font-size: 2rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .subtitle {
+      color: var(--text-secondary);
+      margin-bottom: 2rem;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.375rem 0.75rem;
+      border-radius: 9999px;
+      font-size: 0.875rem;
+      font-weight: 600;
+    }
+
+    .status-badge.healthy {
+      background-color: rgba(16, 185, 129, 0.2);
+      color: var(--success);
+    }
+
+    .status-badge .pulse {
+      width: 8px;
+      height: 8px;
+      background-color: var(--success);
+      border-radius: 50%;
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    /* Grid Layout */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+    }
+
+    .card {
+      background-color: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 0.75rem;
+      padding: 1.5rem;
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1rem;
+    }
+
+    .card-title {
+      font-size: 0.875rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-secondary);
+    }
+
+    .card-icon {
+      font-size: 1.5rem;
+    }
+
+    .metric-value {
+      font-size: 2.5rem;
+      font-weight: 700;
+      font-family: 'JetBrains Mono', monospace;
+      margin-bottom: 0.25rem;
+    }
+
+    .metric-label {
+      font-size: 0.875rem;
+      color: var(--text-secondary);
+    }
+
+    /* Progress Bar */
+    .progress-bar {
+      width: 100%;
+      height: 8px;
+      background-color: var(--bg-tertiary);
+      border-radius: 9999px;
+      overflow: hidden;
+      margin-top: 0.5rem;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent), #8b5cf6);
+      transition: width 0.3s ease;
+    }
+
+    .progress-fill.warning {
+      background: linear-gradient(90deg, var(--warning), #f97316);
+    }
+
+    .progress-fill.error {
+      background: linear-gradient(90deg, var(--error), #dc2626);
+    }
+
+    /* Table */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    th, td {
+      text-align: left;
+      padding: 0.75rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    th {
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-secondary);
+    }
+
+    td {
+      font-size: 0.875rem;
+    }
+
+    .mono {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.8125rem;
+    }
+
+    /* Info Grid */
+    .info-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1rem;
+    }
+
+    .info-item {
+      display: flex;
+      justify-content: space-between;
+      padding: 0.75rem;
+      background-color: var(--bg-tertiary);
+      border-radius: 0.5rem;
+    }
+
+    .info-label {
+      color: var(--text-secondary);
+      font-size: 0.875rem;
+    }
+
+    .info-value {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.875rem;
+      font-weight: 600;
+    }
+
+    /* Logs */
+    .log-entry {
+      padding: 0.5rem 0;
+      border-bottom: 1px solid var(--bg-tertiary);
+      display: flex;
+      gap: 1rem;
+      align-items: flex-start;
+    }
+
+    .log-entry:last-child {
+      border-bottom: none;
+    }
+
+    .log-timestamp {
+      color: var(--text-secondary);
+      font-size: 0.75rem;
+      min-width: 80px;
+    }
+
+    .log-level {
+      font-weight: 700;
+      min-width: 60px;
+      text-transform: uppercase;
+      font-size: 0.75rem;
+    }
+
+    .log-level.info { color: var(--accent); }
+    .log-level.success { color: var(--success); }
+    .log-level.warn { color: var(--warning); }
+    .log-level.error { color: var(--error); }
+
+    .log-message {
+      flex: 1;
+      color: var(--text-primary);
+    }
+
+    /* Loading */
+    .loading {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+      color: var(--text-secondary);
+    }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: var(--bg-primary);
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: var(--bg-tertiary);
+      border-radius: 4px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--border);
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <a href="/" class="logo">
+      <div class="logo-icon">🤖</div>
+      <span>AI Backend</span>
+    </a>
+    <nav class="nav-links">
+      <a href="/">Dashboard</a>
+      <a href="/docs.html">Docs</a>
+      <a href="/status.html" class="active">Status</a>
+    </nav>
+  </header>
+
+  <main>
+    <div class="container">
+      <h1>System Status</h1>
+      <div class="subtitle">
+        <span class="status-badge healthy">
+          <span class="pulse"></span>
+          <span>System Healthy</span>
+        </span>
+        <span id="last-updated">Last updated: --</span>
+      </div>
+
+      <div class="stats-grid">
+        <!-- CPU Card -->
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">CPU</span>
+            <span class="card-icon">💻</span>
+          </div>
+          <div class="metric-value" id="cpu-cores">--</div>
+          <div class="metric-label" id="cpu-model">Loading...</div>
+        </div>
+
+        <!-- Memory Card -->
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">Memory</span>
+            <span class="card-icon">🧠</span>
+          </div>
+          <div class="metric-value" id="memory-used">--</div>
+          <div class="metric-label" id="memory-total">of -- GB</div>
+          <div class="progress-bar">
+            <div class="progress-fill" id="memory-progress"></div>
+          </div>
+        </div>
+
+        <!-- Disk Card -->
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">Disk Usage</span>
+            <span class="card-icon">💾</span>
+          </div>
+          <div class="metric-value" id="disk-total">--</div>
+          <div class="metric-label">Total storage used</div>
+        </div>
+      </div>
+
+      <div class="stats-grid">
+        <!-- Jobs Card -->
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">Jobs</span>
+            <span class="card-icon">📊</span>
+          </div>
+          <div class="info-grid">
+            <div class="info-item">
+              <span class="info-label">Total</span>
+              <span class="info-value" id="jobs-total">--</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Processing</span>
+              <span class="info-value" id="jobs-processing">--</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Queued</span>
+              <span class="info-value" id="jobs-queued">--</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Completed</span>
+              <span class="info-value" id="jobs-completed">--</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Queue Card -->
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">Queue Status</span>
+            <span class="card-icon">🔄</span>
+          </div>
+          <div class="info-grid">
+            <div class="info-item">
+              <span class="info-label">Running</span>
+              <span class="info-value" id="queue-running">--</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Max Slots</span>
+              <span class="info-value" id="queue-max">--</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Available</span>
+              <span class="info-value" id="queue-available">--</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">In Queue</span>
+              <span class="info-value" id="queue-queued">--</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Uptime Card -->
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">Uptime</span>
+            <span class="card-icon">⏱️</span>
+          </div>
+          <div class="metric-value" id="uptime-value">--</div>
+          <div class="metric-label">System uptime</div>
+        </div>
+      </div>
+
+      <!-- Python Processes -->
+      <div class="card" style="margin-bottom: 2rem;">
+        <div class="card-header">
+          <span class="card-title">Active Python Processes</span>
+          <span class="card-icon">🐍</span>
+        </div>
+        <div id="python-processes">
+          <div class="loading">Loading...</div>
+        </div>
+      </div>
+
+      <!-- System Info -->
+      <div class="card" style="margin-bottom: 2rem;">
+        <div class="card-header">
+          <span class="card-title">System Information</span>
+          <span class="card-icon">ℹ️</span>
+        </div>
+        <div id="system-info">
+          <div class="loading">Loading...</div>
+        </div>
+      </div>
+
+      <!-- Configuration -->
+      <div class="card" style="margin-bottom: 2rem;">
+        <div class="card-header">
+          <span class="card-title">Configuration</span>
+          <span class="card-icon">⚙️</span>
+        </div>
+        <div id="config-info">
+          <div class="loading">Loading...</div>
+        </div>
+      </div>
+
+      <!-- Live Logs -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Live Logs</span>
+          <span class="card-icon">📜</span>
+        </div>
+        <div id="logs-container" style="background-color: var(--bg-primary); border-radius: 0.5rem; padding: 1rem; font-family: 'JetBrains Mono', monospace; font-size: 0.8125rem; max-height: 400px; overflow-y: auto;">
+          <div class="loading">Loading logs...</div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    const apiKey = localStorage.getItem('apiKey') || 'change-me-in-production';
+
+    function getAuthHeaders() {
+      return { 'X-API-Key': apiKey };
+    }
+
+    function formatBytes(bytes) {
+      if (bytes === 0) return '0 B';
+      const k = 1024;
+      const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+
+    function formatUptime(seconds) {
+      const days = Math.floor(seconds / 86400);
+      const hours = Math.floor((seconds % 86400) / 3600);
+      const minutes = Math.floor((seconds % 3600) / 60);
+      
+      if (days > 0) return `${days}d ${hours}h`;
+      if (hours > 0) return `${hours}h ${minutes}m`;
+      return `${minutes}m`;
+    }
+
+    async function loadStatus() {
+      try {
+        const response = await fetch('/api/status/system', {
+          headers: getAuthHeaders()
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to load status');
+        }
+
+        const data = await response.json();
+        updateUI(data);
+        
+        document.getElementById('last-updated').textContent = 
+          `Last updated: ${new Date().toLocaleTimeString()}`;
+      } catch (error) {
+        console.error('Failed to load status:', error);
+      }
+    }
+
+    async function loadLogs() {
+      try {
+        const response = await fetch('/api/status/logs?limit=30', {
+          headers: getAuthHeaders()
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to load logs');
+        }
+
+        const data = await response.json();
+        updateLogs(data.logs);
+      } catch (error) {
+        console.error('Failed to load logs:', error);
+      }
+    }
+
+    function updateLogs(logs) {
+      const container = document.getElementById('logs-container');
+      
+      if (logs.length === 0) {
+        container.innerHTML = '<p style="text-align: center; color: var(--text-secondary); padding: 1rem;">No logs yet</p>';
+        return;
+      }
+
+      container.innerHTML = logs.map(log => {
+        const time = new Date(log.timestamp).toLocaleTimeString();
+        return `
+          <div class="log-entry">
+            <span class="log-timestamp">${time}</span>
+            <span class="log-level ${log.level}">${log.level}</span>
+            <span class="log-message">${escapeHtml(log.message)}</span>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    function updateUI(data) {
+      // CPU
+      document.getElementById('cpu-cores').textContent = `${data.cpu.cores} Cores`;
+      document.getElementById('cpu-model').textContent = data.cpu.model;
+
+      // Memory
+      const memoryUsedGB = (data.memory.used / (1024 ** 3)).toFixed(2);
+      const memoryTotalGB = (data.memory.total / (1024 ** 3)).toFixed(2);
+      document.getElementById('memory-used').textContent = `${memoryUsedGB} GB`;
+      document.getElementById('memory-total').textContent = `of ${memoryTotalGB} GB`;
+      
+      const memoryProgress = document.getElementById('memory-progress');
+      memoryProgress.style.width = `${data.memory.usagePercent.toFixed(1)}%`;
+      memoryProgress.className = 'progress-fill';
+      if (data.memory.usagePercent > 80) memoryProgress.classList.add('error');
+      else if (data.memory.usagePercent > 60) memoryProgress.classList.add('warning');
+
+      // Disk
+      document.getElementById('disk-total').textContent = formatBytes(data.disk.total);
+
+      // Jobs
+      document.getElementById('jobs-total').textContent = data.jobs.total;
+      document.getElementById('jobs-processing').textContent = data.jobs.processing;
+      document.getElementById('jobs-queued').textContent = data.jobs.queued;
+      document.getElementById('jobs-completed').textContent = data.jobs.completed;
+
+      // Queue
+      document.getElementById('queue-running').textContent = data.queue.running;
+      document.getElementById('queue-max').textContent = data.queue.maxConcurrent;
+      document.getElementById('queue-available').textContent = data.queue.availableSlots;
+      document.getElementById('queue-queued').textContent = data.queue.queued;
+
+      // Uptime
+      document.getElementById('uptime-value').textContent = formatUptime(data.system.uptime);
+
+      // Python Processes
+      const processesHtml = data.pythonProcesses.length > 0
+        ? `<table>
+            <thead>
+              <tr>
+                <th>Job ID</th>
+                <th>PID</th>
+                <th>Stage</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${data.pythonProcesses.map(p => `
+                <tr>
+                  <td class="mono">${p.jobId.substring(0, 8)}...</td>
+                  <td class="mono">${p.pid}</td>
+                  <td>${p.stage}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>`
+        : '<p style="text-align: center; color: var(--text-secondary); padding: 1rem;">No active Python processes</p>';
+      
+      document.getElementById('python-processes').innerHTML = processesHtml;
+
+      // System Info
+      document.getElementById('system-info').innerHTML = `
+        <div class="info-grid">
+          <div class="info-item">
+            <span class="info-label">Platform</span>
+            <span class="info-value">${data.system.platform}</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">Architecture</span>
+            <span class="info-value">${data.system.arch}</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">Hostname</span>
+            <span class="info-value">${data.system.hostname}</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">Node Version</span>
+            <span class="info-value">${data.system.nodeVersion}</span>
+          </div>
+        </div>
+      `;
+
+      // Configuration
+      document.getElementById('config-info').innerHTML = `
+        <div class="info-grid">
+          <div class="info-item">
+            <span class="info-label">Port</span>
+            <span class="info-value">${data.config.port}</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">Environment</span>
+            <span class="info-value">${data.config.nodeEnv}</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">Min Confidence</span>
+            <span class="info-value">${data.config.minConfidence}</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">Python</span>
+            <span class="info-value mono" title="${data.config.pythonExecutable}">
+              ${data.config.pythonExecutable.split('\\').pop()}
+            </span>
+          </div>
+        </div>
+      `;
+    }
+
+    // Initial load
+    loadStatus();
+    loadLogs();
+
+    // Auto-refresh every 3 seconds
+    setInterval(loadStatus, 3000);
+    setInterval(loadLogs, 2000); // Refresh logs more frequently
+  </script>
+</body>
+</html>
+

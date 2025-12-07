@@ -311,6 +311,37 @@
       background-color: var(--bg-tertiary);
     }
 
+    .tag.queued {
+      background-color: rgba(139, 92, 246, 0.2);
+      color: #8b5cf6;
+    }
+
+    .tag.uploading,
+    .tag.processing {
+      background-color: rgba(59, 130, 246, 0.2);
+      color: var(--accent);
+      animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+
+    .tag.completed {
+      background-color: rgba(16, 185, 129, 0.2);
+      color: var(--success);
+    }
+
+    .tag.error {
+      background-color: rgba(239, 68, 68, 0.2);
+      color: var(--error);
+    }
+
+    @keyframes pulse {
+      0%, 100% {
+        opacity: 1;
+      }
+      50% {
+        opacity: 0.6;
+      }
+    }
+
     .tag.owned {
       background-color: rgba(16, 185, 129, 0.2);
       color: var(--success);
@@ -329,7 +360,15 @@
       <a href="/" class="back-btn">← Back</a>
       <span>Job Details</span>
     </h1>
-    <div id="connection-status" class="status-badge">Disconnected</div>
+    <div style="display: flex; gap: 1.5rem; align-items: center;">
+      <a href="/docs.html" style="color: var(--text-secondary); text-decoration: none; font-weight: 500; display: flex; align-items: center; gap: 0.5rem; font-size: 0.875rem; transition: color 0.2s;">
+        📚 Docs
+      </a>
+      <a href="/status.html" style="color: var(--text-secondary); text-decoration: none; font-weight: 500; display: flex; align-items: center; gap: 0.5rem; font-size: 0.875rem; transition: color 0.2s;">
+        📊 Status
+      </a>
+      <div id="connection-status" class="status-badge">Disconnected</div>
+    </div>
   </header>
 
   <main>
@@ -354,6 +393,8 @@
         <h2>Actions</h2>
         <div class="input-group">
           <button id="load-data-btn" disabled>Load Detections</button>
+          <button id="terminate-btn" style="background-color: var(--error); display: none;">Terminate Job</button>
+          <button id="delete-btn" style="background-color: var(--error); display: none;">🗑️ Delete Job & Data</button>
           <button onclick="window.location.href='/'">← Back to Dashboard</button>
         </div>
       </div>
@@ -366,6 +407,14 @@
           <div class="card-header">
             <span class="card-title">Job Status</span>
             <span id="stage-badge" class="tag">Idle</span>
+          </div>
+          <div id="queue-indicator" style="display: none; background: rgba(139, 92, 246, 0.2); padding: 0.75rem; border-radius: 0.5rem; margin-bottom: 1rem;">
+            <div style="font-size: 0.875rem; color: #8b5cf6; font-weight: 600;">
+              📋 Job Queued
+            </div>
+            <div style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.25rem;">
+              Position: <span id="queue-position">#1</span> • Waiting for available slot
+            </div>
           </div>
           <div class="progress-container">
             <div style="display: flex; justify-content: space-between; font-size: 0.875rem;">
@@ -465,10 +514,14 @@
     const videoIdInput = document.getElementById('video-id');
     const fileNameInput = document.getElementById('file-name');
     const loadDataBtn = document.getElementById('load-data-btn');
+    const terminateBtn = document.getElementById('terminate-btn');
+    const deleteBtn = document.getElementById('delete-btn');
     const connectionStatus = document.getElementById('connection-status');
 
     // Status Elements
     const stageBadge = document.getElementById('stage-badge');
+    const queueIndicator = document.getElementById('queue-indicator');
+    const queuePosition = document.getElementById('queue-position');
     const uploadBar = document.getElementById('upload-bar');
     const uploadPct = document.getElementById('upload-pct');
     const processingBar = document.getElementById('processing-bar');
@@ -497,6 +550,57 @@
 
     // Event Listeners
     loadDataBtn.addEventListener('click', fetchFinalResults);
+    
+    terminateBtn.addEventListener('click', async () => {
+      if (!confirm('Are you sure you want to terminate this job?')) {
+        return;
+      }
+
+      try {
+        const response = await fetch(`/api/jobs/${currentJobId}/terminate`, {
+          method: 'POST',
+          headers: getAuthHeaders(),
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to terminate job');
+        }
+
+        alert('Job terminated successfully');
+        window.location.href = '/';
+      } catch (error) {
+        console.error('Error terminating job:', error);
+        alert('Failed to terminate job');
+      }
+    });
+
+    deleteBtn.addEventListener('click', async () => {
+      if (!confirm('⚠️ This will permanently delete the job and ALL associated data (videos, frames, results). This cannot be undone. Continue?')) {
+        return;
+      }
+
+      try {
+        deleteBtn.disabled = true;
+        deleteBtn.textContent = 'Deleting...';
+
+        const response = await fetch(`/api/jobs/${currentJobId}`, {
+          method: 'DELETE',
+          headers: getAuthHeaders(),
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to delete job');
+        }
+
+        alert('Job and all data deleted successfully');
+        window.location.href = '/';
+      } catch (error) {
+        console.error('Error deleting job:', error);
+        alert('Failed to delete job');
+        deleteBtn.disabled = false;
+        deleteBtn.textContent = '🗑️ Delete Job & Data';
+      }
+    });
 
     loadRefinedBtn.addEventListener('click', fetchRefinedResults);
     copyRefinedBtn.addEventListener('click', () => {
@@ -544,10 +648,40 @@
       }, 1000);
     }
 
-    function updateDashboard(job) {
+    async function updateDashboard(job) {
       // Set job info
       videoIdInput.value = job.videoId;
       fileNameInput.value = job.originalFileName;
+      
+      // Show/hide action buttons based on job status
+      const canTerminate = job.status !== 'completed' && job.status !== 'error';
+      const canDelete = job.status === 'completed' || job.status === 'error';
+      
+      terminateBtn.style.display = canTerminate ? 'block' : 'none';
+      deleteBtn.style.display = canDelete ? 'block' : 'none';
+      
+      // Show queue indicator if job is queued
+      if (job.status === 'queued') {
+        queueIndicator.style.display = 'block';
+        
+        // Get queue position by fetching all jobs
+        try {
+          const response = await fetch('/api/jobs', { headers: getAuthHeaders() });
+          if (response.ok) {
+            const data = await response.json();
+            const queuedJobs = data.jobs
+              .filter(j => j.status === 'queued')
+              .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+            
+            const position = queuedJobs.findIndex(j => j.id === job.id) + 1;
+            queuePosition.textContent = `#${position}`;
+          }
+        } catch (error) {
+          console.error('Failed to get queue position:', error);
+        }
+      } else {
+        queueIndicator.style.display = 'none';
+      }
       
       // Progress
       const up = job.uploadProgress || 0;
@@ -560,6 +694,7 @@
       processingPct.textContent = `${Math.round(pp)}%`;
 
       stageBadge.textContent = job.currentStage || job.status;
+      stageBadge.className = `tag ${job.status}`;
       frameCount.textContent = job.detectedFramesCount || 0;
 
       // Live Preview
