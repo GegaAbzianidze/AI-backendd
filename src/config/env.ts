@@ -26,10 +26,6 @@ const apiKey = process.env.API_KEY ?? 'change-me-in-production';
 const maskedKey = apiKey.length > 8 ? `${apiKey.substring(0, 4)}...${apiKey.substring(apiKey.length - 4)}` : '***';
 console.log(`🔑 API Key: ${process.env.API_KEY ? `Using custom key (${maskedKey})` : 'Using default key (change-me-in-production)'}`);
 
-// YOLO Service URL (for microservices architecture)
-const yoloServiceUrl = process.env.YOLO_SERVICE_URL ?? 'http://localhost:8000';
-console.log(`🤖 YOLO Service: ${yoloServiceUrl}`);
-
 export const env = {
   nodeEnv: process.env.NODE_ENV ?? 'development',
   port: Number(process.env.PORT) || 3000,
@@ -37,7 +33,6 @@ export const env = {
   uploadDir: path.join(projectRoot, 'uploads'),
   framesDir: path.join(projectRoot, 'frames'),
   publicDir: path.join(projectRoot, 'public'),
-  yoloServiceUrl,
   pythonExecutable: process.env.PYTHON_EXECUTABLE ?? path.join(projectRoot, 'python', 'venv', process.platform === 'win32' ? 'Scripts' : 'bin', 'python'),
   yoloModelPath:
     process.env.YOLO_MODEL_PATH ?? path.join(projectRoot, 'models', 'my_model', 'train', 'weights', 'best.pt'),

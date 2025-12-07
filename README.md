@@ -1,315 +1,255 @@
-# AI Backend - Video Processing API
+# AI Backend - Video Processing
 
-Multi-job video processing backend with AI detection, OCR, and real-time monitoring. Built with Node.js, Express, Python, YOLO, and EasyOCR.
+AI-powered video processing backend with YOLO detection, OCR, and multi-job queue management.
 
-## 🚀 Features
+## 🎯 Features
 
-- **Multi-job processing** - Run up to 3 videos simultaneously
-- **Automatic queueing** - Jobs queue when at capacity
-- **Real-time monitoring** - Live preview and progress tracking
-- **AI Detection** - YOLO-based object detection
-- **OCR Processing** - Text extraction with EasyOCR
-- **REST API** - Complete API for integration
-- **Modern Dashboard** - Clean, minimal UI for job management
-- **Docker Ready** - Full containerization support
-- **Cloud Deployment** - Fly.io ready with one command
+- **Multi-job processing** - Process up to 3 videos simultaneously
+- **Automatic queueing** - Jobs auto-queue when at capacity
+- **YOLO detection** - AI object detection on video frames
+- **OCR processing** - Text extraction with EasyOCR
+- **Real-time monitoring** - Live progress tracking and preview
+- **Web dashboard** - Clean, modern UI for job management
+- **RESTful API** - Complete API for integration
+- **Docker ready** - Single container deployment
 
-## 📋 Prerequisites
+## 📁 Project Structure
+
+```
+AI backend/
+├── src/                    # TypeScript backend source
+│   ├── config/            # Configuration
+│   ├── controllers/       # Request handlers
+│   ├── routes/            # API routes
+│   ├── services/          # Business logic
+│   └── middleware/        # Auth & error handling
+├── public/                 # Web dashboard
+│   ├── index.html         # Job list page
+│   └── job-detail.html    # Job detail page
+├── python/                 # Python detection
+│   ├── detector.py        # YOLO + OCR logic
+│   └── requirements.txt   # Python dependencies
+├── models/                 # YOLO model weights
+├── Dockerfile             # Docker configuration
+├── package.json           # Node.js dependencies
+├── tsconfig.json          # TypeScript config
+└── .gitignore            # Git ignore rules
+```
+
+## 🚀 Quick Start
+
+### Prerequisites
+
+- Node.js 20+
+- Python 3.12
+- FFmpeg
 
 ### Local Development
-- Node.js 20+
-- Python 3.12+ (for ML libraries compatibility)
-- FFmpeg
-- Virtual environment for Python
 
-### Docker/Production
-- Docker (all dependencies included)
-- Fly.io CLI (for cloud deployment)
-
-## 🛠️ Setup
-
-### 1. Install Dependencies
-
-**Node.js:**
+**1. Install Node.js dependencies:**
 ```bash
 npm install
 ```
 
-**Python (with virtual environment):**
+**2. Set up Python environment:**
 ```bash
 cd python
 python -m venv venv
-.\venv\Scripts\Activate.ps1  # Windows
-source venv/bin/activate      # Linux/Mac
+
+# Windows
+.\venv\Scripts\Activate.ps1
+
+# Linux/Mac
+source venv/bin/activate
+
 pip install -r requirements.txt
 ```
 
-### 2. Environment Configuration
-
-Create a `.env` file:
-```bash
-# API Security
-API_KEY=your-secret-key-here
-
-# Server
+**3. Configure environment:**
+Create `.env` file:
+```env
+API_KEY=your-secret-key
 PORT=3000
 NODE_ENV=development
-
-# Python (optional, auto-detected)
-PYTHON_EXECUTABLE=./python/venv/Scripts/python
-
-# YOLO Model (optional)
-YOLO_MODEL_PATH=./models/my_model/train/weights/best.pt
-MIN_CONFIDENCE=0.5
 ```
 
-### 3. Build TypeScript
-
+**4. Build and run:**
 ```bash
 npm run build
-```
-
-## 🏃 Running the Application
-
-### Development Mode
-```bash
 npm run dev
 ```
 
-### Production Mode
-```bash
-npm start
-```
+Open `http://localhost:3000`
 
 ### Docker
-```bash
-# Build image
-docker build -t ai-backend .
 
-# Run container
-docker run -p 8080:8080 \
+**Build:**
+```bash
+docker build -t ai-backend .
+```
+
+**Run:**
+```bash
+docker run -p 3000:3000 \
   -e API_KEY=your-secret-key \
   ai-backend
 ```
 
-### Docker Compose
-```bash
-docker-compose up --build
-```
+## 📡 API Endpoints
 
-## 📚 Documentation
-
-- **[API Documentation](./APIPath.md)** - Complete API reference with examples
-- **[Deployment Guide](./DEPLOYMENT.md)** - Step-by-step Fly.io deployment
-
-## 🌐 API Endpoints
-
-All endpoints require `X-API-Key` header for authentication.
+All endpoints require `X-API-Key` header.
 
 ### Videos
-- `POST /api/videos/upload` - Upload and process video
-- `GET /api/videos/{videoId}/items` - Get detected items
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `POST` | `/api/videos/upload` | Upload video and start processing |
+| `GET` | `/api/videos/:id/items` | Get detected items |
 
 ### Jobs
-- `GET /api/jobs` - List all jobs with stats
-- `GET /api/jobs/{jobId}/status` - Get job status and progress
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/api/jobs` | List all jobs with queue stats |
+| `GET` | `/api/jobs/:id/status` | Get job status and progress |
 
 ### Skins
-- `GET /api/skins/refined?videoId={id}` - Get refined detection results
 
-### Debug
-- `GET /api/test-key` - Test API key validity
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/api/skins/refined?videoId=xxx` | Get refined detection results |
 
-See [APIPath.md](./APIPath.md) for detailed documentation.
+**Full API documentation:** [APIPath.md](./APIPath.md)
+
+## 🧪 Testing
+
+### Test API Key
+```bash
+curl http://localhost:3000/api/test-key \
+  -H "X-API-Key: your-secret-key"
+```
+
+### Upload Video
+```bash
+curl -X POST http://localhost:3000/api/videos/upload \
+  -H "X-API-Key: your-secret-key" \
+  -F "video=@/path/to/video.mp4"
+```
+
+### Get All Jobs
+```bash
+curl http://localhost:3000/api/jobs \
+  -H "X-API-Key: your-secret-key"
+```
 
 ## 🎨 Web Interface
 
-### Landing Page (`/`)
-- View all jobs in real-time
-- Upload new videos
-- Monitor queue status (running/queued)
-- Click jobs to view details
+- **Landing Page** (`/`) - View all jobs, upload videos
+- **Job Detail** (`/job-detail.html?jobId=xxx`) - Live progress, results
 
-### Job Detail Page (`/job-detail.html?jobId=xxx`)
-- Live video processing preview
-- Real-time progress tracking
-- Detected objects list
-- Frame-by-frame analysis
-- Download results
+## ⚙️ Configuration
+
+Environment variables:
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `API_KEY` | `change-me-in-production` | API authentication key |
+| `PORT` | `3000` | Server port |
+| `NODE_ENV` | `development` | Environment mode |
+| `PYTHON_EXECUTABLE` | `auto-detected` | Python path |
+| `YOLO_MODEL_PATH` | `models/.../best.pt` | YOLO model file |
+| `MIN_CONFIDENCE` | `0.5` | Detection threshold |
 
 ## 🏗️ Architecture
 
-### Job Processing Pipeline
-
-1. **Upload** - Video file received
-2. **Queue** - Job queued if 3 already running
-3. **Frame Extraction** - FFmpeg extracts frames (7 fps)
-4. **AI Detection** - YOLO processes each frame
-5. **OCR** - Text extraction from detected regions
-6. **Results** - JSON output with all detections
-
-### Concurrency Model
-
-- **Max concurrent jobs:** 3
-- **Queue:** Unlimited, auto-processes
-- **Isolation:** Each job fully isolated
-- **Progress tracking:** Real-time updates
-
-### Tech Stack
-
-**Backend:**
-- Node.js 20 + Express
-- TypeScript
-- FFmpeg (video processing)
-- Multer (file uploads)
-
-**AI/ML:**
-- Python 3.12
-- Ultralytics YOLO v8
-- EasyOCR
-- OpenCV
-- NumPy
-
-**Frontend:**
-- Vanilla JavaScript
-- Modern CSS (no frameworks)
-- Real-time polling
-
-## 📦 Project Structure
-
 ```
-├── src/
-│   ├── config/          # Configuration & environment
-│   ├── controllers/     # Request handlers
-│   ├── routes/          # API routes
-│   ├── services/        # Business logic
-│   │   ├── jobService.ts       # Job queue management
-│   │   ├── videoService.ts     # Video processing
-│   │   └── detectionService.ts # AI detection
-│   ├── middleware/      # Auth & error handling
-│   └── types/           # TypeScript definitions
-├── public/
-│   ├── index.html       # Landing page (job list)
-│   └── job-detail.html  # Job detail view
-├── python/
-│   ├── detector.py      # Python detection worker
-│   └── requirements.txt # Python dependencies
-├── models/              # YOLO model weights
-├── uploads/             # Temporary video storage
-├── frames/              # Processed frames & results
-├── Dockerfile           # Production container
-├── fly.toml            # Fly.io configuration
-└── docker-compose.yml  # Local Docker setup
+┌─────────────────────────────────────────┐
+│         Node.js Backend (Express)       │
+│  - API endpoints                        │
+│  - Job queue (3 concurrent)             │
+│  - FFmpeg video processing              │
+│  - Multer file uploads                  │
+└──────────────┬──────────────────────────┘
+               │
+               ▼
+┌─────────────────────────────────────────┐
+│      Python Detection (subprocess)      │
+│  - YOLO object detection                │
+│  - EasyOCR text extraction              │
+│  - Frame-by-frame processing            │
+└─────────────────────────────────────────┘
 ```
 
-## 🚢 Deployment
+## 🔒 Security
 
-### Railway (Recommended) 🚂
-
-**Best for:** Large Docker images, ML apps, easy setup
-
-**Quick Deploy:**
-1. Push to GitHub
-2. Go to [railway.app](https://railway.app)
-3. Click "Deploy from GitHub repo"
-4. Set `API_KEY` environment variable
-5. Done! 🎉
-
-**CLI Deploy:**
-```bash
-npm i -g @railway/cli
-railway login
-railway init
-railway up
-```
-
-See [RAILWAY_DEPLOYMENT.md](./RAILWAY_DEPLOYMENT.md) for complete guide.
-
-### Fly.io (Alternative)
-
-**Note:** May have issues with large Docker images (8GB limit)
-
-```bash
-curl -L https://fly.io/install.sh | sh
-fly auth login
-fly launch
-fly secrets set API_KEY=your-secure-key
-fly deploy --dockerfile Dockerfile.light
-```
-
-See [DEPLOYMENT.md](./DEPLOYMENT.md) for complete guide.
-
-### Other Platforms
-
-The Docker container works on any platform that supports Docker:
-- AWS ECS/Fargate
-- Google Cloud Run
-- Azure Container Instances
-- DigitalOcean App Platform
-- Heroku Container Registry
-- Railway.app
-
-## 🔐 Security
-
-- **API Key Authentication** - Required for all endpoints
-- **Input Validation** - File type and size checks
-- **Rate Limiting** - 3 concurrent jobs max
-- **Isolated Processing** - Jobs don't interfere
-- **Non-root Container** - Docker runs as unprivileged user
+- API key authentication required
+- Non-root Docker container
+- Environment-based secrets
+- Input validation
+- Rate limiting (3 concurrent jobs max)
 
 ## 🐛 Troubleshooting
 
-### Python Import Errors
-Use Python 3.12 or 3.11 (not 3.14) - ML libraries need compatible versions.
+### Python Not Found
+Ensure Python 3.12 is installed and in PATH, or set `PYTHON_EXECUTABLE` env var.
+
+### Model File Missing
+Verify `models/my_model/train/weights/best.pt` exists and is not in `.gitignore`.
 
 ### FFmpeg Not Found
-Install FFmpeg: `apt-get install ffmpeg` (Linux) or `brew install ffmpeg` (Mac)
+Install FFmpeg: `apt-get install ffmpeg` (Linux) or `brew install ffmpeg` (Mac).
 
-### API 401 Errors
+### API 401 Error
 Check API key is set and matches between server and client.
 
-### Build Failures
-Clear cache: `npm run build && docker build --no-cache -t ai-backend .`
+## 📦 Dependencies
 
-### Memory Issues
-Increase Docker memory: Edit Docker Desktop settings or use larger VM.
+### Node.js
+- Express - Web framework
+- TypeScript - Type safety
+- Multer - File uploads
+- FFmpeg - Video processing
 
-## 📊 Monitoring
+### Python
+- Ultralytics (YOLO) - Object detection
+- EasyOCR - Text extraction
+- OpenCV - Image processing
+- NumPy - Array operations
 
-The application includes:
-- Health check endpoint (Docker/Fly.io)
-- Real-time job statistics
-- Live progress tracking
-- Error reporting
-- Queue monitoring
+## 🛠️ Development
 
-## 🤝 Contributing
+```bash
+# Install dependencies
+npm install
 
-1. Fork the repository
-2. Create feature branch (`git checkout -b feature/amazing`)
-3. Commit changes (`git commit -m 'Add amazing feature'`)
-4. Push to branch (`git push origin feature/amazing`)
-5. Open Pull Request
+# Build TypeScript
+npm run build
+
+# Run development server (watch mode)
+npm run dev
+
+# Run production server
+npm start
+```
+
+## 📝 Scripts
+
+| Command | Description |
+|---------|-------------|
+| `npm run dev` | Development server with auto-reload |
+| `npm run build` | Build TypeScript to JavaScript |
+| `npm start` | Run production server |
 
 ## 📄 License
 
-MIT License - See LICENSE file for details
+MIT License
 
-## 🔗 Resources
+## 🙏 Acknowledgments
 
-- [API Documentation](./APIPath.md)
-- [Deployment Guide](./DEPLOYMENT.md)
-- [Fly.io Docs](https://fly.io/docs)
-- [YOLO Documentation](https://docs.ultralytics.com)
-- [EasyOCR GitHub](https://github.com/JaidedAI/EasyOCR)
-
-## 📞 Support
-
-For issues and questions:
-- Open an issue on GitHub
-- Check [APIPath.md](./APIPath.md) for API usage
-- See [DEPLOYMENT.md](./DEPLOYMENT.md) for deployment help
+- YOLO (Ultralytics) for object detection
+- EasyOCR for text extraction
+- FFmpeg for video processing
 
 ---
 
-Made with ❤️ using Node.js, Python, and YOLO
+**Made with ❤️ using Node.js, Python, and YOLO**

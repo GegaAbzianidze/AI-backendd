@@ -1,4 +1,7 @@
+import { spawn } from 'child_process';
+import path from 'path';
 import fs from 'fs/promises';
+import readline from 'readline';
 import { env } from '../config/env';
 import { FrameItems, OwnershipStatus } from '../types/media';
 
@@ -15,10 +18,8 @@ interface RunDetectionOptions {
   onFramePreview?: (frame: { frameIndex: number; items: Array<{ name: string; owned?: OwnershipStatus; equipped?: boolean }>; processingTime?: number; videoTime?: number }) => void;
 }
 
-/**
- * Call YOLO microservice to process frames
- * This version communicates with a separate YOLO service via HTTP
- */
+const detectorScript = path.join(__dirname, '..', '..', 'python', 'detector.py');
+
 export const runDetections = async ({
   framesDir,
   outputJson,
@@ -28,95 +29,8 @@ export const runDetections = async ({
   onProgress,
   onStageChange,
   onFramePreview,
-}: RunDetectionOptions): Promise<FrameItems[]> => {
-  try {
-    console.log(`🤖 Calling YOLO service at: ${env.yoloServiceUrl}`);
-    
-    // Prepare request to YOLO service
-    const requestBody = {
-      frames_dir: framesDir,
-      output_json: outputJson,
-      total_frames: totalFrames,
-      preview_file: previewFile || '',
-      model_path: env.yoloModelPath,
-      confidence: env.minConfidence,
-    };
-
-    console.log('📤 Sending detection request...');
-    onStageChange?.('ai');
-    
-    // Call YOLO microservice
-    const response = await fetch(`${env.yoloServiceUrl}/detect`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(requestBody),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`YOLO service error (${response.status}): ${errorText}`);
-    }
-
-    const result = await response.json() as { success: boolean; detected_frames: number; message: string };
-    console.log(`✅ YOLO service completed: ${result.detected_frames} frames processed`);
-
-    // Simulate progress updates (since we don't have streaming from HTTP)
-    // In a real implementation, you might use WebSocket or polling
-    const progressInterval = totalFrames / 10;
-    for (let i = 1; i <= 10; i++) {
-      onProgress?.(Math.min(i * progressInterval, totalFrames));
-      if (i === 5) onStageChange?.('ocr');
-      await new Promise(resolve => setTimeout(resolve, 100));
-    }
-
-    // Read the results from the output file
-    const fileContent = await fs.readFile(outputJson, 'utf-8');
-    const results = JSON.parse(fileContent) as FrameItems[];
-    
-    console.log(`📊 Loaded ${results.length} detection results`);
-    return results;
-
-  } catch (error) {
-    console.error('❌ Detection service error:', error);
-    
-    // Fallback to local Python execution if microservice is unavailable
-    console.log('⚠️  YOLO service unavailable, falling back to local execution...');
-    return runDetectionsLocal({
-      framesDir,
-      outputJson,
-      totalFrames,
-      fps,
-      previewFile,
-      onProgress,
-      onStageChange,
-      onFramePreview,
-    });
-  }
-};
-
-/**
- * Fallback: Run YOLO detection locally (original implementation)
- * Used when microservice is unavailable
- */
-const runDetectionsLocal = async ({
-  framesDir,
-  outputJson,
-  totalFrames,
-  fps = 7.0,
-  previewFile,
-  onProgress,
-  onStageChange,
-  onFramePreview,
-}: RunDetectionOptions): Promise<FrameItems[]> => {
-  const { spawn } = await import('child_process');
-  const path = await import('path');
-  const readline = await import('readline');
-  
-  return new Promise((resolve, reject) => {
-    const detectorScript = path.join(__dirname, '..', '..', 'python', 'detector.py');
-    
+}: RunDetectionOptions): Promise<FrameItems[]> =>
+  new Promise((resolve, reject) => {
     const args = [
       detectorScript,
       '--model',
@@ -171,6 +85,11 @@ const runDetectionsLocal = async ({
         }
         return;
       }
+
+      if (line.startsWith('DEBUG')) {
+        console.log(`[Python] ${line}`);
+        return;
+      }
     });
 
     let stderr = '';
@@ -197,5 +116,4 @@ const runDetectionsLocal = async ({
       }
     });
   });
-};
 

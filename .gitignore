@@ -99,13 +99,14 @@ temp/
 .railway/
 fly.toml.backup
 
-# Model training outputs (keep only best.pt)
+# Model training outputs (keep only best.pt and args.yaml)
 models/my_model/train/*.jpg
 models/my_model/train/*.png
 models/my_model/train/*.csv
 models/my_model/train/weights/last.pt
-models/my_model/vea.mp4
-models/my_model/yolo_detect.py
+models/my_model/*.mp4
+models/my_model/*.py
+models/my_model/*.pt
 
 # Cache directories
 .cache/
