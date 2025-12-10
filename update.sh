@@ -231,8 +231,12 @@ echo -e "${GREEN}✓ Node.js build complete${NC}\n"
 # ============================================
 # 5. Update .env if needed
 # ============================================
+echo -e "${YELLOW}[5/5] Configuring environment...${NC}"
+
+BACKEND_PORT="3000"
+
 if [ -f ".env.backup" ]; then
-    echo -e "${YELLOW}[5/5] Updating environment configuration...${NC}"
+    echo -e "${YELLOW}Updating environment configuration from backup...${NC}"
     
     # Restore backup
     cp .env.backup .env
@@ -242,6 +246,7 @@ if [ -f ".env.backup" ]; then
     OLD_MIN_CONFIDENCE=$(grep "^MIN_CONFIDENCE=" .env | cut -d'=' -f2- || echo "0.5")
     OLD_PORT=$(grep "^PORT=" .env | cut -d'=' -f2- || echo "3000")
     OLD_NODE_ENV=$(grep "^NODE_ENV=" .env | cut -d'=' -f2- || echo "production")
+    BACKEND_PORT="$OLD_PORT"
     
     # Remove old path entries
     sed -i '/^HOME=/d; /^APP_DIR=/d; /^RUNTIME_DIR=/d; /^MPLCONFIGDIR=/d; /^XDG_CACHE_HOME=/d; /^XDG_CONFIG_HOME=/d; /^EASYOCR_CACHE_DIR=/d; /^PYTHON_EXECUTABLE=/d; /^YOLO_MODEL_PATH=/d' .env
@@ -275,8 +280,94 @@ EOF
     chmod 600 .env
     
     echo -e "${GREEN}✓ Environment configuration updated${NC}\n"
+elif [ -f ".env" ]; then
+    echo -e "${YELLOW}Updating paths in existing .env file...${NC}"
+    
+    # Extract current values
+    OLD_API_KEY=$(grep "^API_KEY=" .env | cut -d'=' -f2- || echo "")
+    OLD_MIN_CONFIDENCE=$(grep "^MIN_CONFIDENCE=" .env | cut -d'=' -f2- || echo "0.5")
+    OLD_PORT=$(grep "^PORT=" .env | cut -d'=' -f2- || echo "3000")
+    OLD_NODE_ENV=$(grep "^NODE_ENV=" .env | cut -d'=' -f2- || echo "production")
+    BACKEND_PORT="$OLD_PORT"
+    
+    # Remove old path entries
+    sed -i '/^HOME=/d; /^APP_DIR=/d; /^RUNTIME_DIR=/d; /^MPLCONFIGDIR=/d; /^XDG_CACHE_HOME=/d; /^XDG_CONFIG_HOME=/d; /^EASYOCR_CACHE_DIR=/d; /^PYTHON_EXECUTABLE=/d; /^YOLO_MODEL_PATH=/d' .env
+    
+    # Add correct paths
+    cat >> .env <<EOF
+
+# Auto-updated paths
+HOME=${APP_DIR}
+APP_DIR=${APP_DIR}
+RUNTIME_DIR=${APP_DIR}
+MPLCONFIGDIR=${APP_DIR}/.config/matplotlib
+XDG_CACHE_HOME=${APP_DIR}/.cache
+XDG_CONFIG_HOME=${APP_DIR}/.config
+EASYOCR_CACHE_DIR=${APP_DIR}/.EasyOCR
+PYTHON_EXECUTABLE=${APP_DIR}/python/venv/bin/python
+YOLO_MODEL_PATH=${APP_DIR}/models/my_model/train/weights/best.pt
+EOF
+    
+    # Preserve sensitive values
+    [ -n "$OLD_API_KEY" ] && sed -i "s|^API_KEY=.*|API_KEY=${OLD_API_KEY}|" .env || echo "API_KEY=${OLD_API_KEY}" >> .env
+    [ -n "$OLD_MIN_CONFIDENCE" ] && sed -i "s|^MIN_CONFIDENCE=.*|MIN_CONFIDENCE=${OLD_MIN_CONFIDENCE}|" .env || echo "MIN_CONFIDENCE=${OLD_MIN_CONFIDENCE}" >> .env
+    [ -n "$OLD_PORT" ] && sed -i "s|^PORT=.*|PORT=${OLD_PORT}|" .env || echo "PORT=${OLD_PORT}" >> .env
+    [ -n "$OLD_NODE_ENV" ] && sed -i "s|^NODE_ENV=.*|NODE_ENV=${OLD_NODE_ENV}|" .env || echo "NODE_ENV=${OLD_NODE_ENV}" >> .env
+    
+    # Clean up duplicates
+    awk '!seen[$0]++' .env > .env.tmp && mv .env.tmp .env
+    
+    chown "$APP_USER:$APP_USER" .env
+    chmod 600 .env
+    
+    echo -e "${GREEN}✓ Environment configuration updated${NC}\n"
+elif [ -f ".env.example" ]; then
+    echo -e "${YELLOW}Creating .env from .env.example...${NC}"
+    cp .env.example .env
+    sed -i "s|/app|${APP_DIR}|g" .env
+    
+    # Get port from .env
+    BACKEND_PORT=$(grep "^PORT=" .env | cut -d'=' -f2- || echo "3000")
+    
+    # Generate API key if needed
+    if ! grep -q "^API_KEY=" .env || grep -q "change-me-in-production" .env; then
+        API_KEY=$(openssl rand -hex 32)
+        sed -i "s|API_KEY=.*|API_KEY=${API_KEY}|" .env
+        echo -e "${YELLOW}⚠ Generated API key: ${API_KEY}${NC}"
+        echo -e "${YELLOW}⚠ IMPORTANT: Save this API key!${NC}"
+    fi
+    
+    chown "$APP_USER:$APP_USER" .env
+    chmod 600 .env
+    
+    echo -e "${GREEN}✓ Created .env from .env.example${NC}\n"
 else
-    echo -e "${YELLOW}[5/5] Skipping environment update (no backup found)${NC}\n"
+    echo -e "${YELLOW}Creating basic .env file...${NC}"
+    # Create basic .env
+    cat > .env <<EOF
+NODE_ENV=production
+PORT=${BACKEND_PORT}
+API_KEY=$(openssl rand -hex 32)
+HOME=${APP_DIR}
+APP_DIR=${APP_DIR}
+RUNTIME_DIR=${APP_DIR}
+MPLCONFIGDIR=${APP_DIR}/.config/matplotlib
+XDG_CACHE_HOME=${APP_DIR}/.cache
+XDG_CONFIG_HOME=${APP_DIR}/.config
+EASYOCR_CACHE_DIR=${APP_DIR}/.EasyOCR
+PYTHON_EXECUTABLE=${APP_DIR}/python/venv/bin/python
+YOLO_MODEL_PATH=${APP_DIR}/models/my_model/train/weights/best.pt
+MIN_CONFIDENCE=0.5
+EOF
+    
+    API_KEY=$(grep "^API_KEY=" .env | cut -d'=' -f2-)
+    echo -e "${YELLOW}⚠ Generated API key: ${API_KEY}${NC}"
+    echo -e "${YELLOW}⚠ IMPORTANT: Save this API key!${NC}"
+    
+    chown "$APP_USER:$APP_USER" .env
+    chmod 600 .env
+    
+    echo -e "${GREEN}✓ Created basic .env file${NC}\n"
 fi
 
 # ============================================
@@ -284,16 +375,19 @@ fi
 # ============================================
 echo -e "${YELLOW}Restarting service...${NC}"
 
+# Ensure .env exists before creating service
+if [ ! -f ".env" ]; then
+    echo -e "${RED}✗ ERROR: .env file is required but not found${NC}"
+    echo -e "${YELLOW}Please create .env file or run build.sh for initial setup${NC}"
+    exit 1
+fi
+
+# Get port from .env
+BACKEND_PORT=$(grep "^PORT=" .env | cut -d'=' -f2- || echo "3000")
+
 # Check if service exists
 if [ ! -f "/etc/systemd/system/${APP_NAME}.service" ]; then
     echo -e "${YELLOW}⚠ Service file not found. Creating systemd service...${NC}"
-    
-    # Get port from .env or use default
-    if [ -f ".env" ]; then
-        BACKEND_PORT=$(grep "^PORT=" .env | cut -d'=' -f2- || echo "3000")
-    else
-        BACKEND_PORT="3000"
-    fi
     
     # Create systemd service file
     cat > "/etc/systemd/system/${APP_NAME}.service" <<EOF
