@@ -46,6 +46,15 @@ echo -e "${GREEN}========================================${NC}\n"
 cd "$APP_DIR"
 
 # ============================================
+# 0. Ensure Application User Exists
+# ============================================
+if ! id "$APP_USER" &>/dev/null; then
+    echo -e "${YELLOW}Creating application user: ${APP_USER}...${NC}"
+    useradd -r -s /bin/bash -d "$APP_DIR" -m "$APP_USER"
+    echo -e "${GREEN}✓ Created user: ${APP_USER}${NC}\n"
+fi
+
+# ============================================
 # 1. Backup .env
 # ============================================
 echo -e "${YELLOW}[1/5] Backing up configuration...${NC}"
@@ -76,6 +85,10 @@ if [ -d ".git" ]; then
         git lfs install || true
         git lfs pull || true
     fi
+    
+    # Wait a moment for filesystem to sync
+    echo -e "${BLUE}Waiting for filesystem to sync...${NC}"
+    sleep 2
     
     echo -e "${GREEN}✓ Code updated${NC}"
 else
@@ -276,7 +289,9 @@ EOF
     awk '!seen[$0]++' .env > .env.tmp && mv .env.tmp .env
     rm -f .env.backup
     
-    chown "$APP_USER:$APP_USER" .env
+    if id "$APP_USER" &>/dev/null; then
+        chown "$APP_USER:$APP_USER" .env
+    fi
     chmod 600 .env
     
     echo -e "${GREEN}✓ Environment configuration updated${NC}\n"
@@ -317,7 +332,9 @@ EOF
     # Clean up duplicates
     awk '!seen[$0]++' .env > .env.tmp && mv .env.tmp .env
     
-    chown "$APP_USER:$APP_USER" .env
+    if id "$APP_USER" &>/dev/null; then
+        chown "$APP_USER:$APP_USER" .env
+    fi
     chmod 600 .env
     
     echo -e "${GREEN}✓ Environment configuration updated${NC}\n"
@@ -337,7 +354,9 @@ elif [ -f ".env.example" ]; then
         echo -e "${YELLOW}⚠ IMPORTANT: Save this API key!${NC}"
     fi
     
-    chown "$APP_USER:$APP_USER" .env
+    if id "$APP_USER" &>/dev/null; then
+        chown "$APP_USER:$APP_USER" .env
+    fi
     chmod 600 .env
     
     echo -e "${GREEN}✓ Created .env from .env.example${NC}\n"
@@ -364,7 +383,9 @@ EOF
     echo -e "${YELLOW}⚠ Generated API key: ${API_KEY}${NC}"
     echo -e "${YELLOW}⚠ IMPORTANT: Save this API key!${NC}"
     
-    chown "$APP_USER:$APP_USER" .env
+    if id "$APP_USER" &>/dev/null; then
+        chown "$APP_USER:$APP_USER" .env
+    fi
     chmod 600 .env
     
     echo -e "${GREEN}✓ Created basic .env file${NC}\n"
@@ -455,7 +476,9 @@ else
 fi
 
 # Set ownership
-chown -R "$APP_USER:$APP_USER" "$APP_DIR"
+if id "$APP_USER" &>/dev/null; then
+    chown -R "$APP_USER:$APP_USER" "$APP_DIR"
+fi
 
 echo ""
 
