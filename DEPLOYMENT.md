@@ -22,6 +22,31 @@ cd /opt/ai-backend
 sudo bash deploy_ubuntu.sh
 ```
 
+### Updating the Application
+
+After initial deployment, to update to the latest code:
+
+```bash
+# Option 1: Use the update script (recommended)
+sudo bash update.sh
+
+# Option 2: Manual update
+cd /opt/ai-backend
+sudo git pull
+sudo npm ci --production
+sudo npm install typescript --no-save
+sudo npm run build
+sudo npm uninstall typescript
+sudo systemctl restart ai-backend.service
+```
+
+The `update.sh` script will:
+- Pull latest changes from git
+- Update Python dependencies if needed
+- Rebuild TypeScript
+- Restart the service
+- Preserve your `.env` file
+
 The script will:
 - Install all system dependencies
 - Set up Python virtual environment

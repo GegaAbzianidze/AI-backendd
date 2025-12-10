@@ -4,8 +4,9 @@ import os
 from typing import List, Optional, Tuple
 
 # Ensure libraries that rely on a writable home/cache (matplotlib, EasyOCR) work
-# Use /app as the base directory (set in Dockerfile or deployment script)
-_app_dir = os.environ.get('APP_DIR', '/app')
+# Use APP_DIR from environment (set in Dockerfile or deployment script)
+# Falls back to /app for Docker, but should be set to /opt/ai-backend for Ubuntu deployments
+_app_dir = os.environ.get('APP_DIR', os.environ.get('RUNTIME_DIR', '/app'))
 _runtime_dir = os.environ.get('RUNTIME_DIR', _app_dir)
 
 # Set proper HOME and cache directories

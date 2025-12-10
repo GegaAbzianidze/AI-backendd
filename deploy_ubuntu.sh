@@ -242,6 +242,8 @@ Environment="MPLCONFIGDIR=${APP_DIR}/.config/matplotlib"
 Environment="XDG_CACHE_HOME=${APP_DIR}/.cache"
 Environment="XDG_CONFIG_HOME=${APP_DIR}/.config"
 Environment="EASYOCR_CACHE_DIR=${APP_DIR}/.EasyOCR"
+Environment="PYTHON_EXECUTABLE=${APP_DIR}/python/venv/bin/python"
+Environment="YOLO_MODEL_PATH=${APP_DIR}/models/my_model/train/weights/best.pt"
 ExecStart=/usr/bin/node ${APP_DIR}/dist/index.js
 Restart=always
 RestartSec=10
@@ -342,24 +344,59 @@ echo -e "${GREEN}✓ Nginx configured and started${NC}"
 echo -e "\n${YELLOW}[7/8] Setting up HTTPS (Let's Encrypt)...${NC}"
 
 if [ "$DOMAIN" != "mydomain.com" ] && [ "$DOMAIN" != "_" ]; then
-    echo -e "${YELLOW}Attempting to obtain SSL certificate for ${DOMAIN}...${NC}"
+    # Check if domain resolves to this server
+    SERVER_IP=$(curl -s ifconfig.me || curl -s icanhazip.com || echo "unknown")
+    DOMAIN_IP=$(dig +short "${DOMAIN}" | tail -n1 || echo "unknown")
     
-    # Run certbot in non-interactive mode
-    certbot --nginx \
-        --non-interactive \
-        --agree-tos \
-        --email "${ADMIN_EMAIL}" \
-        -d "${DOMAIN}" \
-        --redirect || {
-        echo -e "${YELLOW}⚠ SSL certificate setup failed. You can run manually later:${NC}"
+    echo -e "${YELLOW}Checking domain configuration...${NC}"
+    echo -e "  Server IP: ${SERVER_IP}"
+    echo -e "  Domain ${DOMAIN} resolves to: ${DOMAIN_IP}"
+    
+    if [ "$DOMAIN_IP" != "$SERVER_IP" ] && [ "$DOMAIN_IP" != "unknown" ] && [ "$SERVER_IP" != "unknown" ]; then
+        echo -e "${RED}⚠ WARNING: Domain ${DOMAIN} does not point to this server!${NC}"
+        echo -e "${YELLOW}   Domain IP: ${DOMAIN_IP}${NC}"
+        echo -e "${YELLOW}   Server IP: ${SERVER_IP}${NC}"
+        echo -e "${YELLOW}   Please update your DNS A record to point ${DOMAIN} to ${SERVER_IP}${NC}"
+        echo -e "${YELLOW}   Skipping HTTPS setup for now. Run manually after DNS is configured:${NC}"
         echo -e "${YELLOW}   certbot --nginx -d ${DOMAIN}${NC}"
-    }
-    
-    # Set up auto-renewal
-    systemctl enable certbot.timer
-    systemctl start certbot.timer
-    
-    echo -e "${GREEN}✓ HTTPS configured${NC}"
+    else
+        # Check if port 80 is accessible
+        echo -e "${YELLOW}Verifying HTTP access...${NC}"
+        if curl -s -o /dev/null -w "%{http_code}" --max-time 5 "http://${DOMAIN}" | grep -q "200\|301\|302"; then
+            echo -e "${GREEN}✓ HTTP is accessible${NC}"
+        else
+            echo -e "${YELLOW}⚠ HTTP might not be accessible from internet${NC}"
+            echo -e "${YELLOW}   This could be a firewall issue. Checking UFW...${NC}"
+        fi
+        
+        echo -e "${YELLOW}Attempting to obtain SSL certificate for ${DOMAIN}...${NC}"
+        
+        # Run certbot in non-interactive mode
+        if certbot --nginx \
+            --non-interactive \
+            --agree-tos \
+            --email "${ADMIN_EMAIL}" \
+            -d "${DOMAIN}" \
+            --redirect 2>&1 | tee /tmp/certbot-output.log; then
+            echo -e "${GREEN}✓ SSL certificate obtained successfully${NC}"
+            
+            # Set up auto-renewal
+            systemctl enable certbot.timer
+            systemctl start certbot.timer
+            echo -e "${GREEN}✓ HTTPS auto-renewal configured${NC}"
+        else
+            echo -e "${RED}✗ SSL certificate setup failed${NC}"
+            echo -e "${YELLOW}Troubleshooting steps:${NC}"
+            echo -e "  1. Verify DNS: dig ${DOMAIN} (should show ${SERVER_IP})"
+            echo -e "  2. Check firewall: sudo ufw status (port 80 should be open)"
+            echo -e "  3. Test HTTP: curl -I http://${DOMAIN}"
+            echo -e "  4. Check Nginx: sudo systemctl status nginx"
+            echo -e "  5. View certbot logs: sudo cat /var/log/letsencrypt/letsencrypt.log"
+            echo -e ""
+            echo -e "${YELLOW}Once DNS and firewall are configured, run manually:${NC}"
+            echo -e "${YELLOW}  certbot --nginx -d ${DOMAIN}${NC}"
+        fi
+    fi
 else
     echo -e "${YELLOW}⚠ Skipping HTTPS setup (domain not configured)${NC}"
     echo -e "${YELLOW}   To set up HTTPS later, run:${NC}"

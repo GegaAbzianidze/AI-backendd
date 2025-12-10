@@ -54,15 +54,19 @@ export const runDetections = async ({
     }
 
     // Pass environment variables to Python process for cache directories
+    // Use APP_DIR or RUNTIME_DIR from env, fallback to process.cwd() (works for both Docker /app and Ubuntu /opt/ai-backend)
+    const appDir = process.env.APP_DIR || process.env.RUNTIME_DIR || process.cwd();
+    const homeDir = process.env.HOME || appDir;
+    
     const pythonEnv = {
       ...process.env,
-      HOME: process.env.HOME || '/app',
-      APP_DIR: process.env.APP_DIR || process.cwd(),
-      RUNTIME_DIR: process.env.RUNTIME_DIR || process.env.APP_DIR || process.cwd(),
-      MPLCONFIGDIR: process.env.MPLCONFIGDIR || `${process.env.HOME || '/app'}/.config/matplotlib`,
-      XDG_CACHE_HOME: process.env.XDG_CACHE_HOME || `${process.env.HOME || '/app'}/.cache`,
-      XDG_CONFIG_HOME: process.env.XDG_CONFIG_HOME || `${process.env.HOME || '/app'}/.config`,
-      EASYOCR_CACHE_DIR: process.env.EASYOCR_CACHE_DIR || `${process.env.HOME || '/app'}/.EasyOCR`,
+      HOME: homeDir,
+      APP_DIR: appDir,
+      RUNTIME_DIR: process.env.RUNTIME_DIR || appDir,
+      MPLCONFIGDIR: process.env.MPLCONFIGDIR || `${homeDir}/.config/matplotlib`,
+      XDG_CACHE_HOME: process.env.XDG_CACHE_HOME || `${homeDir}/.cache`,
+      XDG_CONFIG_HOME: process.env.XDG_CONFIG_HOME || `${homeDir}/.config`,
+      EASYOCR_CACHE_DIR: process.env.EASYOCR_CACHE_DIR || `${homeDir}/.EasyOCR`,
     };
 
     const python = spawn(env.pythonExecutable, args, {
