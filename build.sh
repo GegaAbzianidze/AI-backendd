@@ -2,10 +2,10 @@
 set -euo pipefail
 
 # ============================================
-# AI Backend - Complete Build & Deployment Script
+# AI Backend - Fresh Installation Script
 # ============================================
-# This script performs a complete build and deployment from start to finish
-# Supports both fresh installations and updates
+# This script performs a complete fresh installation from start to finish
+# For updates, use: sudo bash update.sh
 # Run as: sudo bash build.sh
 #
 # Environment variables (optional):
@@ -38,13 +38,11 @@ if [ "$EUID" -ne 0 ]; then
     exit 1
 fi
 
-# Detect if this is a fresh install or update
-IS_UPDATE=false
+# Check if installation already exists
 if [ -d "$APP_DIR" ] && [ -f "$APP_DIR/package.json" ]; then
-    IS_UPDATE=true
-    echo -e "${BLUE}Detected existing installation - performing update${NC}"
-else
-    echo -e "${BLUE}Fresh installation detected${NC}"
+    echo -e "${RED}ERROR: Installation already exists at ${APP_DIR}${NC}"
+    echo -e "${YELLOW}For updates, please use: sudo bash update.sh${NC}"
+    exit 1
 fi
 
 # Detect Ubuntu version
@@ -63,92 +61,79 @@ else
 fi
 
 echo -e "${GREEN}========================================${NC}"
-echo -e "${GREEN}AI Backend Build & Deployment${NC}"
+echo -e "${GREEN}AI Backend - Fresh Installation${NC}"
 echo -e "${GREEN}Ubuntu ${UBUNTU_VERSION} (${UBUNTU_CODENAME})${NC}"
-echo -e "${GREEN}Mode: $([ "$IS_UPDATE" = true ] && echo "UPDATE" || echo "FRESH INSTALL")${NC}"
 echo -e "${GREEN}========================================${NC}\n"
 
 # ============================================
-# 1. System Setup (only for fresh installs)
+# 1. System Setup
 # ============================================
-if [ "$IS_UPDATE" = false ]; then
-    echo -e "${YELLOW}[1/9] Setting up system...${NC}"
-    
-    if [ "$SKIP_SYSTEM_UPDATE" != "true" ]; then
-        export DEBIAN_FRONTEND=noninteractive
-        apt-get update
-        apt-get upgrade -y
-    fi
-    
-    echo -e "${YELLOW}Installing system dependencies...${NC}"
-    
-    # Determine correct GL package for Ubuntu version
-    if [ "$UBUNTU_MAJOR" -ge 24 ]; then
-        GL_PACKAGE="libgl1"
-    else
-        GL_PACKAGE="libgl1-mesa-glx"
-    fi
-    
-    apt-get install -y \
-        git \
-        git-lfs \
-        curl \
-        build-essential \
-        python3 \
-        python3-venv \
-        python3-pip \
-        nginx \
-        ufw \
-        certbot \
-        python3-certbot-nginx \
-        ffmpeg \
-        "$GL_PACKAGE" \
-        libglib2.0-0 \
-        libgomp1 \
-        fonts-dejavu-core \
-        fonts-liberation
-    
-    # Install Node.js
-    echo -e "${YELLOW}Installing Node.js ${NODE_VERSION}...${NC}"
-    curl -fsSL https://deb.nodesource.com/setup_${NODE_VERSION}.x | bash -
-    apt-get install -y nodejs
-    
-    echo -e "${GREEN}✓ System setup complete${NC}\n"
-else
-    echo -e "${YELLOW}[1/9] Skipping system setup (update mode)${NC}\n"
+echo -e "${YELLOW}[1/9] Setting up system...${NC}"
+
+if [ "$SKIP_SYSTEM_UPDATE" != "true" ]; then
+    export DEBIAN_FRONTEND=noninteractive
+    apt-get update
+    apt-get upgrade -y
 fi
+
+echo -e "${YELLOW}Installing system dependencies...${NC}"
+
+# Determine correct GL package for Ubuntu version
+if [ "$UBUNTU_MAJOR" -ge 24 ]; then
+    GL_PACKAGE="libgl1"
+else
+    GL_PACKAGE="libgl1-mesa-glx"
+fi
+
+apt-get install -y \
+    git \
+    git-lfs \
+    curl \
+    build-essential \
+    python3 \
+    python3-venv \
+    python3-pip \
+    nginx \
+    ufw \
+    certbot \
+    python3-certbot-nginx \
+    ffmpeg \
+    "$GL_PACKAGE" \
+    libglib2.0-0 \
+    libgomp1 \
+    fonts-dejavu-core \
+    fonts-liberation
+
+# Install Node.js
+echo -e "${YELLOW}Installing Node.js ${NODE_VERSION}...${NC}"
+curl -fsSL https://deb.nodesource.com/setup_${NODE_VERSION}.x | bash -
+apt-get install -y nodejs
+
+echo -e "${GREEN}✓ System setup complete${NC}\n"
 
 # ============================================
 # 2. Application Directory Setup
 # ============================================
 echo -e "${YELLOW}[2/9] Setting up application directory...${NC}"
 
-if [ "$IS_UPDATE" = false ]; then
-    # Create application user
-    if ! id "$APP_USER" &>/dev/null; then
-        useradd -r -s /bin/bash -d "$APP_DIR" -m "$APP_USER"
-        echo -e "${GREEN}✓ Created user: ${APP_USER}${NC}"
-    fi
-    
-    # Create application directory
-    mkdir -p "$APP_DIR"
-    
-    # If repo is not cloned, user needs to clone it first
-    if [ ! -d "$APP_DIR/.git" ]; then
-        echo -e "${RED}ERROR: Repository not found in ${APP_DIR}${NC}"
-        echo -e "${YELLOW}Please clone the repository first:${NC}"
-        echo -e "${YELLOW}  git clone <your-repo-url> ${APP_DIR}${NC}"
-        exit 1
-    fi
+# Create application user
+if ! id "$APP_USER" &>/dev/null; then
+    useradd -r -s /bin/bash -d "$APP_DIR" -m "$APP_USER"
+    echo -e "${GREEN}✓ Created user: ${APP_USER}${NC}"
+fi
+
+# Create application directory
+mkdir -p "$APP_DIR"
+
+# If repo is not cloned, user needs to clone it first
+if [ ! -d "$APP_DIR/.git" ]; then
+    echo -e "${RED}ERROR: Repository not found in ${APP_DIR}${NC}"
+    echo -e "${YELLOW}Please clone the repository first:${NC}"
+    echo -e "${YELLOW}  git clone <your-repo-url> ${APP_DIR}${NC}"
+    exit 1
 fi
 
 cd "$APP_DIR"
-
-# Backup .env if it exists
-if [ -f ".env" ]; then
-    cp .env .env.backup
-    echo -e "${GREEN}✓ Backed up existing .env file${NC}"
-fi
 
 # Pull latest code (if git repo)
 if [ -d ".git" ]; then
@@ -489,15 +474,13 @@ else
 fi
 
 # ============================================
-# Firewall Setup (only for fresh installs)
+# Firewall Setup
 # ============================================
-if [ "$IS_UPDATE" = false ]; then
-    echo -e "\n${YELLOW}Configuring firewall...${NC}"
-    ufw allow OpenSSH
-    ufw allow 'Nginx Full'
-    echo "y" | ufw enable
-    echo -e "${GREEN}✓ Firewall configured${NC}"
-fi
+echo -e "\n${YELLOW}Configuring firewall...${NC}"
+ufw allow OpenSSH
+ufw allow 'Nginx Full'
+echo "y" | ufw enable
+echo -e "${GREEN}✓ Firewall configured${NC}"
 
 # Set ownership
 chown -R "$APP_USER:$APP_USER" "$APP_DIR"
@@ -528,5 +511,6 @@ echo -e "\n${YELLOW}Useful Commands:${NC}"
 echo -e "  View logs:    journalctl -u ${APP_NAME}.service -f"
 echo -e "  Restart:      systemctl restart ${APP_NAME}.service"
 echo -e "  Status:       systemctl status ${APP_NAME}.service"
+echo -e "  Update:       sudo bash update.sh"
 echo -e "${GREEN}========================================${NC}\n"
 
