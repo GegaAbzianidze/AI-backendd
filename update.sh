@@ -158,6 +158,47 @@ echo ""
 # ============================================
 echo -e "${YELLOW}[4/5] Building Node.js application...${NC}"
 
+# Check if npm is available
+if ! command -v npm >/dev/null 2>&1; then
+    echo -e "${RED}✗ ERROR: npm command not found${NC}"
+    echo -e "${YELLOW}Installing Node.js...${NC}"
+    
+    # Detect Ubuntu version for Node.js installation
+    if [ -f /etc/os-release ]; then
+        UBUNTU_VERSION=$(grep VERSION_ID /etc/os-release | cut -d'"' -f2 | cut -d. -f1,2)
+        UBUNTU_MAJOR=$(echo "$UBUNTU_VERSION" | cut -d. -f1)
+    elif command -v lsb_release >/dev/null 2>&1; then
+        UBUNTU_VERSION=$(lsb_release -rs)
+        UBUNTU_MAJOR=$(echo "$UBUNTU_VERSION" | cut -d. -f1)
+    else
+        UBUNTU_MAJOR="22"
+    fi
+    
+    NODE_VERSION="20"
+    export DEBIAN_FRONTEND=noninteractive
+    
+    # Install Node.js
+    curl -fsSL https://deb.nodesource.com/setup_${NODE_VERSION}.x | bash -
+    apt-get install -y nodejs
+    
+    # Verify installation
+    if ! command -v npm >/dev/null 2>&1; then
+        echo -e "${RED}✗ ERROR: Failed to install Node.js/npm${NC}"
+        exit 1
+    fi
+    
+    echo -e "${GREEN}✓ Node.js installed${NC}"
+fi
+
+# Verify npm is working
+NPM_VERSION=$(npm --version 2>/dev/null || echo "")
+if [ -z "$NPM_VERSION" ]; then
+    echo -e "${RED}✗ ERROR: npm is not working properly${NC}"
+    exit 1
+fi
+
+echo -e "${BLUE}Using npm version: ${NPM_VERSION}${NC}"
+
 if [ "$SKIP_NODE_UPDATE" != "true" ]; then
     if [ -f "package.json" ]; then
         # Install/update dependencies
