@@ -5,7 +5,8 @@ set -euo pipefail
 # Ubuntu Server Deployment Script
 # AI Backend - Node.js + Python Detection Service
 # ============================================
-# This script sets up the entire application on a fresh Ubuntu 22.04 server
+# This script sets up the entire application on Ubuntu 22.04+ server
+# Supports Ubuntu 22.04, 24.04, and newer versions
 # Run as: sudo bash deploy_ubuntu.sh
 
 # Colors for output
@@ -29,8 +30,27 @@ if [ "$EUID" -ne 0 ]; then
     exit 1
 fi
 
+# Detect Ubuntu version early (before package installation)
+# Use /etc/os-release first as it's always available
+if [ -f /etc/os-release ]; then
+    UBUNTU_VERSION=$(grep VERSION_ID /etc/os-release | cut -d'"' -f2 | cut -d. -f1,2)
+    UBUNTU_CODENAME=$(grep VERSION_CODENAME /etc/os-release | cut -d= -f2)
+    UBUNTU_MAJOR=$(echo "$UBUNTU_VERSION" | cut -d. -f1)
+elif command -v lsb_release >/dev/null 2>&1; then
+    UBUNTU_VERSION=$(lsb_release -rs)
+    UBUNTU_CODENAME=$(lsb_release -cs)
+    UBUNTU_MAJOR=$(echo "$UBUNTU_VERSION" | cut -d. -f1)
+else
+    # Final fallback
+    UBUNTU_VERSION="22.04"
+    UBUNTU_CODENAME="jammy"
+    UBUNTU_MAJOR="22"
+    echo -e "${YELLOW}⚠ Could not detect Ubuntu version, assuming 22.04${NC}"
+fi
+
 echo -e "${GREEN}========================================${NC}"
 echo -e "${GREEN}Starting deployment of ${APP_NAME}${NC}"
+echo -e "${GREEN}Detected Ubuntu ${UBUNTU_VERSION} (${UBUNTU_CODENAME})${NC}"
 echo -e "${GREEN}========================================${NC}"
 
 # ============================================
@@ -42,6 +62,16 @@ apt-get update
 apt-get upgrade -y
 
 echo -e "\n${YELLOW}[2/8] Installing system dependencies...${NC}"
+
+# libgl1-mesa-glx was deprecated in Ubuntu 24.04+, use libgl1 instead
+if [ "$UBUNTU_MAJOR" -ge 24 ]; then
+    GL_PACKAGE="libgl1"
+    echo -e "${GREEN}Using libgl1 for Ubuntu ${UBUNTU_VERSION}+${NC}"
+else
+    GL_PACKAGE="libgl1-mesa-glx"
+    echo -e "${GREEN}Using libgl1-mesa-glx for Ubuntu ${UBUNTU_VERSION}${NC}"
+fi
+
 apt-get install -y \
     git \
     curl \
@@ -54,7 +84,7 @@ apt-get install -y \
     certbot \
     python3-certbot-nginx \
     ffmpeg \
-    libgl1-mesa-glx \
+    "$GL_PACKAGE" \
     libglib2.0-0 \
     libgomp1 \
     fonts-dejavu-core \
