@@ -3,6 +3,22 @@ import json
 import os
 from typing import List, Optional, Tuple
 
+# Ensure libraries that rely on a writable home/cache (matplotlib, EasyOCR) work
+_runtime_dir = os.environ.get('RUNTIME_DIR', '/tmp')
+_writable_dirs = {
+    'HOME': _runtime_dir,  # fallback for libs resolving "~" to /nonexistent
+    'MPLCONFIGDIR': os.path.join(_runtime_dir, 'matplotlib'),
+    'XDG_CACHE_HOME': os.path.join(_runtime_dir, 'xdg-cache'),
+    'EASYOCR_CACHE_DIR': os.path.join(_runtime_dir, 'easyocr'),
+}
+for _key, _path in _writable_dirs.items():
+    os.environ.setdefault(_key, _path)
+    try:
+        os.makedirs(_path, exist_ok=True)
+    except OSError:
+        # If creation fails, keep going; downstream libs will surface clearer errors
+        pass
+
 import cv2
 import numpy as np
 from ultralytics import YOLO

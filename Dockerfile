@@ -1,23 +1,8 @@
 # AI Backend - Clean Docker Configuration
-FROM node:20-slim
+# Multi-stage build: Stage 1 - Python 3.12 environment
+FROM python:3.12-slim as python-builder
 
 WORKDIR /app
-
-# Install system dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    ffmpeg \
-    python3 \
-    python3-pip \
-    python3-venv \
-    libgl1-mesa-glx \
-    libglib2.0-0 \
-    libgomp1 \
-    && rm -rf /var/lib/apt/lists/* \
-    && apt-get clean
-
-# Copy package files and install Node.js dependencies
-COPY package*.json ./
-RUN npm ci --only=production && npm cache clean --force
 
 # Install Python dependencies in virtual environment
 COPY python/requirements.txt ./python/requirements.txt
@@ -27,6 +12,30 @@ RUN python3 -m venv /app/python/venv \
     && find /app/python/venv -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true \
     && find /app/python/venv -type f -name "*.pyc" -delete \
     && find /app/python/venv -type f -name "*.pyo" -delete
+
+# Stage 2 - Node.js runtime with Python 3.12
+FROM node:20-slim
+
+WORKDIR /app
+
+# Install system dependencies and Python 3.12
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ffmpeg \
+    libgl1-mesa-glx \
+    libglib2.0-0 \
+    libgomp1 \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
+
+# Copy Python 3.12 venv from builder stage
+COPY --from=python-builder /app/python/venv /app/python/venv
+
+# Verify Python 3.12 version
+RUN /app/python/venv/bin/python --version
+
+# Copy package files and install Node.js dependencies
+COPY package*.json ./
+RUN npm ci --only=production && npm cache clean --force
 
 # Copy application code
 COPY tsconfig.json ./
