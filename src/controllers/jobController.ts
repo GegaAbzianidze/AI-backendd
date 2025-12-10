@@ -68,7 +68,8 @@ export const deleteJobById = async (req: Request, res: Response) => {
       message: 'Job and all associated data deleted successfully',
     });
   } catch (error) {
-    console.error('Failed to delete job:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Failed to delete job data';
+    console.error('[JobController] Failed to delete job:', errorMessage);
     return res.status(500).json({
       success: false,
       message: 'Failed to delete job data',

@@ -1,0 +1,38 @@
+[Unit]
+Description=AI Backend Node.js API Server
+After=network.target
+
+[Service]
+Type=simple
+User=ai-backend
+Group=ai-backend
+WorkingDirectory=/opt/ai-backend
+EnvironmentFile=/opt/ai-backend/.env
+Environment="HOME=/opt/ai-backend"
+Environment="APP_DIR=/opt/ai-backend"
+Environment="RUNTIME_DIR=/opt/ai-backend"
+Environment="MPLCONFIGDIR=/opt/ai-backend/.config/matplotlib"
+Environment="XDG_CACHE_HOME=/opt/ai-backend/.cache"
+Environment="XDG_CONFIG_HOME=/opt/ai-backend/.config"
+Environment="EASYOCR_CACHE_DIR=/opt/ai-backend/.EasyOCR"
+ExecStart=/usr/bin/node /opt/ai-backend/dist/index.js
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=ai-backend
+
+# Security hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/ai-backend/uploads /opt/ai-backend/frames /opt/ai-backend/jobs /opt/ai-backend/data /opt/ai-backend/.config /opt/ai-backend/.cache /opt/ai-backend/.EasyOCR
+
+# Resource limits (adjust as needed)
+LimitNOFILE=65536
+LimitNPROC=4096
+
+[Install]
+WantedBy=multi-user.target
+

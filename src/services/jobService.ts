@@ -193,7 +193,8 @@ export const tryStartNextQueuedJob = async () => {
   
   // Start processing the queued job
   videoService.processVideoJob(nextJob, mockFile).catch((error: Error) => {
-    logger.error(`Processing error for job ${nextJob.id.substring(0, 8)}: ${error.message}`);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      logger.error(`Processing error for job ${nextJob.id.substring(0, 8)}: ${errorMessage}`);
   });
   
   return nextJob;
@@ -219,7 +220,8 @@ export const terminateJob = (jobId: string): boolean => {
       try {
         process.kill(job.pythonProcessId, 'SIGKILL');
       } catch (killError) {
-        console.warn('SIGKILL also failed:', killError);
+        const killErrorMsg = killError instanceof Error ? killError.message : 'Unknown error';
+        logger.error(`SIGKILL also failed for PID ${job.pythonProcessId}: ${killErrorMsg}`);
       }
     }
   }

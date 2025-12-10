@@ -29,13 +29,27 @@ app.get('/', (_req, res) => {
 });
 
 // Debug endpoint to check API key (only in development)
-app.get('/api/test-key', apiKeyAuth, (_req, res) => {
-  res.json({ success: true, message: 'API key is valid!' });
-});
+if (process.env.NODE_ENV !== 'production') {
+  app.get('/api/test-key', apiKeyAuth, (_req, res) => {
+    res.json({ success: true, message: 'API key is valid!' });
+  });
+}
 
 app.use((err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
-  console.error('Unhandled error', err);
   const message = err instanceof Error ? err.message : 'Internal server error';
+  const errorStack = err instanceof Error ? err.stack : undefined;
+  
+  // Log full error in development, sanitized in production
+  if (process.env.NODE_ENV !== 'production') {
+    console.error('[Express] Unhandled error:', err);
+    if (errorStack) {
+      console.error('[Express] Stack trace:', errorStack);
+    }
+  } else {
+    console.error('[Express] Unhandled error:', message);
+  }
+  
+  logger.error(`Unhandled error: ${message}`);
   return res.status(500).json({ success: false, message });
 });
 

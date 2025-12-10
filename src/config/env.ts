@@ -24,7 +24,10 @@ const ensureDirectory = (dirPath: string) => {
 
 const apiKey = process.env.API_KEY ?? 'change-me-in-production';
 const maskedKey = apiKey.length > 8 ? `${apiKey.substring(0, 4)}...${apiKey.substring(apiKey.length - 4)}` : '***';
-console.log(`🔑 API Key: ${process.env.API_KEY ? `Using custom key (${maskedKey})` : 'Using default key (change-me-in-production)'}`);
+// Only log masked key in development to avoid leaking secrets
+if (process.env.NODE_ENV !== 'production') {
+  console.log(`🔑 API Key: ${process.env.API_KEY ? `Using custom key (${maskedKey})` : 'Using default key (change-me-in-production)'}`);
+}
 
 export const env = {
   nodeEnv: process.env.NODE_ENV ?? 'development',

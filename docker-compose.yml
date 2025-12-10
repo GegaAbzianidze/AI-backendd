@@ -13,14 +13,25 @@ services:
       - NODE_ENV=production
       - PORT=3000
       - API_KEY=${API_KEY:-change-me-in-production}
-      - MIN_CONFIDENCE=0.5
+      - MIN_CONFIDENCE=${MIN_CONFIDENCE:-0.5}
+      - HOME=/app
+      - APP_DIR=/app
+      - RUNTIME_DIR=/app
+      - MPLCONFIGDIR=/app/.config/matplotlib
+      - XDG_CACHE_HOME=/app/.cache
+      - XDG_CONFIG_HOME=/app/.config
+      - EASYOCR_CACHE_DIR=/app/.EasyOCR
+      - YOLO_MODEL_PATH=/app/models/my_model/train/weights/best.pt
+      - PYTHON_EXECUTABLE=/app/python/venv/bin/python
     volumes:
-      - .:/app      
       - ./uploads:/app/uploads
       - ./frames:/app/frames
       - ./jobs:/app/jobs
       - ./data:/app/data
       - ./models:/app/models
+      - python_cache:/app/.cache
+      - python_config:/app/.config
+      - easyocr_cache:/app/.EasyOCR
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000/api/status/health"]
       interval: 30s
@@ -35,4 +46,9 @@ services:
         reservations:
           cpus: '2'
           memory: 4G
+
+volumes:
+  python_cache:
+  python_config:
+  easyocr_cache:
 

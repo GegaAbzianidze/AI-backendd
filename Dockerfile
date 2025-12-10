@@ -49,15 +49,27 @@ COPY models/my_model/train/args.yaml ./models/my_model/train/args.yaml
 # Build TypeScript
 RUN npm install typescript && npm run build && npm uninstall typescript
 
-# Create necessary directories
-RUN mkdir -p uploads frames jobs data
+# Create necessary directories with proper permissions
+RUN mkdir -p uploads frames jobs data \
+    && mkdir -p /app/.config/matplotlib \
+    && mkdir -p /app/.cache \
+    && mkdir -p /app/.EasyOCR \
+    && chmod -R 755 /app/.config /app/.cache /app/.EasyOCR
 
-# Environment variables
-ENV NODE_ENV=production \
+# Set HOME and cache environment variables for Python libraries
+ENV HOME=/app \
+    APP_DIR=/app \
+    RUNTIME_DIR=/app \
+    MPLCONFIGDIR=/app/.config/matplotlib \
+    XDG_CACHE_HOME=/app/.cache \
+    XDG_CONFIG_HOME=/app/.config \
+    EASYOCR_CACHE_DIR=/app/.EasyOCR \
+    NODE_ENV=production \
     PORT=3000 \
     YOLO_MODEL_PATH=/app/models/my_model/train/weights/best.pt \
     PYTHON_EXECUTABLE=/app/python/venv/bin/python \
-    API_KEY=change-me-in-production
+    API_KEY=change-me-in-production \
+    MIN_CONFIDENCE=0.5
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
@@ -68,7 +80,8 @@ EXPOSE 3000
 # Run as non-root user for security
 RUN addgroup --system --gid 1001 nodejs \
     && adduser --system --uid 1001 appuser \
-    && chown -R appuser:nodejs /app
+    && chown -R appuser:nodejs /app \
+    && chown -R appuser:nodejs /app/.config /app/.cache /app/.EasyOCR
 
 USER appuser
 

@@ -160,8 +160,15 @@ export const processVideoJob = async (job: Job, file: Express.Multer.File) => {
     
     logger.success(`Job ${job.id.substring(0, 8)} completed: ${detectionResults.length} frames processed`);
   } catch (error) {
-    console.error('Video processing failed', error);
     const errorMessage = error instanceof Error ? error.message : 'Failed to process video';
+    const errorStack = error instanceof Error ? error.stack : undefined;
+    
+    // Log full error details for debugging, but don't expose stack to user
+    console.error(`[VideoService] Job ${job.id.substring(0, 8)} failed:`, errorMessage);
+    if (errorStack && process.env.NODE_ENV !== 'production') {
+      console.error('[VideoService] Stack trace:', errorStack);
+    }
+    
     updateJob(job.id, {
       status: 'error',
       errorMessage,

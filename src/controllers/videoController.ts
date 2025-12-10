@@ -27,8 +27,8 @@ export const uploadVideo = async (req: Request, res: Response) => {
       status: job.status,
     });
   } catch (error) {
-    console.error('Video processing failed', error);
     const message = error instanceof Error ? error.message : 'Failed to process video';
+    console.error('[VideoController] Video upload failed:', message);
     return res.status(500).json({ success: false, message });
   }
 };

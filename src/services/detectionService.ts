@@ -53,8 +53,21 @@ export const runDetections = async ({
       args.push('--preview-file', previewFile);
     }
 
+    // Pass environment variables to Python process for cache directories
+    const pythonEnv = {
+      ...process.env,
+      HOME: process.env.HOME || '/app',
+      APP_DIR: process.env.APP_DIR || process.cwd(),
+      RUNTIME_DIR: process.env.RUNTIME_DIR || process.env.APP_DIR || process.cwd(),
+      MPLCONFIGDIR: process.env.MPLCONFIGDIR || `${process.env.HOME || '/app'}/.config/matplotlib`,
+      XDG_CACHE_HOME: process.env.XDG_CACHE_HOME || `${process.env.HOME || '/app'}/.cache`,
+      XDG_CONFIG_HOME: process.env.XDG_CONFIG_HOME || `${process.env.HOME || '/app'}/.config`,
+      EASYOCR_CACHE_DIR: process.env.EASYOCR_CACHE_DIR || `${process.env.HOME || '/app'}/.EasyOCR`,
+    };
+
     const python = spawn(env.pythonExecutable, args, {
       stdio: ['ignore', 'pipe', 'pipe'],
+      env: pythonEnv,
     });
 
     // Notify about process start with PID
@@ -94,7 +107,10 @@ export const runDetections = async ({
       }
 
       if (line.startsWith('DEBUG')) {
-        console.log(`[Python] ${line}`);
+        // Only log debug messages in development
+        if (process.env.NODE_ENV !== 'production') {
+          console.log(`[Python] ${line}`);
+        }
         return;
       }
     });
@@ -105,13 +121,17 @@ export const runDetections = async ({
     });
 
     python.on('error', (error) => {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      console.error(`[DetectionService] Failed to start Python process: ${errorMessage}`);
       reject(error);
     });
 
     python.on('close', async (code) => {
       stdoutReader.close();
       if (code !== 0) {
-        return reject(new Error(stderr || `Detection script exited with code ${code}`));
+        const errorMsg = stderr || `Detection script exited with code ${code}`;
+        console.error(`[DetectionService] Python process failed: ${errorMsg}`);
+        return reject(new Error(errorMsg));
       }
 
       try {
@@ -119,7 +139,9 @@ export const runDetections = async ({
         const results = JSON.parse(fileContent) as FrameItems[];
         resolve(results);
       } catch (error) {
-        reject(error);
+        const errorMsg = error instanceof Error ? error.message : 'Failed to read detection results';
+        console.error(`[DetectionService] Failed to parse results: ${errorMsg}`);
+        reject(new Error(errorMsg));
       }
     });
   });

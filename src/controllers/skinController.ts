@@ -9,7 +9,10 @@ const skinListPath = path.join(process.cwd(), 'skin_list.txt');
 const skinMatcher = new SkinMatcher(skinListPath);
 
 // Initialize matcher on startup
-skinMatcher.loadSkins().catch(console.error);
+skinMatcher.loadSkins().catch((error) => {
+  const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+  console.error('[SkinController] Failed to load skin list:', errorMessage);
+});
 
 export const getRefinedSkins = async (req: Request, res: Response) => {
     try {
@@ -42,7 +45,8 @@ export const getRefinedSkins = async (req: Request, res: Response) => {
         };
         res.json(simpleList);
     } catch (error) {
-        console.error('Error getting refined skins:', error);
+        const errorMessage = error instanceof Error ? error.message : 'Internal server error';
+        console.error('[SkinController] Error getting refined skins:', errorMessage);
         res.status(500).json({ error: 'Internal server error' });
     }
 };

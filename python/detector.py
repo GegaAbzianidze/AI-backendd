@@ -4,20 +4,27 @@ import os
 from typing import List, Optional, Tuple
 
 # Ensure libraries that rely on a writable home/cache (matplotlib, EasyOCR) work
-_runtime_dir = os.environ.get('RUNTIME_DIR', '/tmp')
+# Use /app as the base directory (set in Dockerfile or deployment script)
+_app_dir = os.environ.get('APP_DIR', '/app')
+_runtime_dir = os.environ.get('RUNTIME_DIR', _app_dir)
+
+# Set proper HOME and cache directories
 _writable_dirs = {
-    'HOME': _runtime_dir,  # fallback for libs resolving "~" to /nonexistent
-    'MPLCONFIGDIR': os.path.join(_runtime_dir, 'matplotlib'),
-    'XDG_CACHE_HOME': os.path.join(_runtime_dir, 'xdg-cache'),
-    'EASYOCR_CACHE_DIR': os.path.join(_runtime_dir, 'easyocr'),
+    'HOME': _runtime_dir,
+    'MPLCONFIGDIR': os.path.join(_runtime_dir, '.config', 'matplotlib'),
+    'XDG_CACHE_HOME': os.path.join(_runtime_dir, '.cache'),
+    'XDG_CONFIG_HOME': os.path.join(_runtime_dir, '.config'),
+    'EASYOCR_CACHE_DIR': os.path.join(_runtime_dir, '.EasyOCR'),
 }
+
+# Ensure all directories exist and are writable
 for _key, _path in _writable_dirs.items():
-    os.environ.setdefault(_key, _path)
+    os.environ[_key] = _path
     try:
-        os.makedirs(_path, exist_ok=True)
-    except OSError:
-        # If creation fails, keep going; downstream libs will surface clearer errors
-        pass
+        os.makedirs(_path, mode=0o755, exist_ok=True)
+    except OSError as e:
+        # Log error but continue - downstream libs will surface clearer errors
+        print(f'WARNING: Failed to create directory {_path}: {e}', flush=True)
 
 import cv2
 import numpy as np
@@ -78,8 +85,17 @@ def read_text(reader: easyocr.Reader, image: np.ndarray) -> str:
 
 
 def run_detection(model_path, frames_dir, output_json, min_conf, fps=7.0, preview_file=None):
-    model = YOLO(model_path, task='detect')
-    reader = easyocr.Reader(['en'], gpu=False)
+    try:
+        model = YOLO(model_path, task='detect')
+    except Exception as e:
+        print(f'ERROR: Failed to load YOLO model from {model_path}: {e}', flush=True)
+        raise
+    
+    try:
+        reader = easyocr.Reader(['en'], gpu=False)
+    except Exception as e:
+        print(f'ERROR: Failed to initialize EasyOCR reader: {e}', flush=True)
+        raise
     frame_files = sorted(
         [f for f in os.listdir(frames_dir) if f.lower().endswith(('.png', '.jpg', '.jpeg'))]
     )
@@ -251,13 +267,23 @@ def run_detection(model_path, frames_dir, output_json, min_conf, fps=7.0, previe
         # Since we are skipping frames, we might want to output the frame index we just processed.
         print(f'PROGRESS:{frame_entry["frameIndex"]}', flush=True)
 
-    with open(output_json, 'w', encoding='utf-8') as outfile:
-        json.dump(frames_with_items, outfile)
+    try:
+        with open(output_json, 'w', encoding='utf-8') as outfile:
+            json.dump(frames_with_items, outfile, indent=2)
+    except Exception as e:
+        print(f'ERROR: Failed to write output JSON to {output_json}: {e}', flush=True)
+        raise
 
 
 def main():
-    args = parse_args()
-    run_detection(args.model, args.frames_dir, args.output_json, args.confidence, args.fps, args.preview_file)
+    try:
+        args = parse_args()
+        run_detection(args.model, args.frames_dir, args.output_json, args.confidence, args.fps, args.preview_file)
+    except Exception as e:
+        print(f'ERROR: Detection failed: {e}', flush=True)
+        import traceback
+        traceback.print_exc()
+        exit(1)
 
 
 if __name__ == '__main__':
