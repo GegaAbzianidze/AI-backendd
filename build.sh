@@ -38,11 +38,27 @@ if [ "$EUID" -ne 0 ]; then
     exit 1
 fi
 
-# Check if installation already exists
+# Check if installation already exists (more thorough check)
+# A complete installation should have at least one of: systemd service, built dist, or node_modules
+IS_COMPLETE_INSTALL=false
 if [ -d "$APP_DIR" ] && [ -f "$APP_DIR/package.json" ]; then
-    echo -e "${RED}ERROR: Installation already exists at ${APP_DIR}${NC}"
+    if [ -f "/etc/systemd/system/${APP_NAME}.service" ] || \
+       [ -d "$APP_DIR/dist" ] || \
+       [ -d "$APP_DIR/node_modules" ] || \
+       [ -d "$APP_DIR/python/venv" ]; then
+        IS_COMPLETE_INSTALL=true
+    fi
+fi
+
+if [ "$IS_COMPLETE_INSTALL" = true ]; then
+    echo -e "${RED}ERROR: Complete installation already exists at ${APP_DIR}${NC}"
     echo -e "${YELLOW}For updates, please use: sudo bash update.sh${NC}"
-    exit 1
+    echo -e "${YELLOW}To force a fresh rebuild, set FORCE_REBUILD=true${NC}"
+    if [ "${FORCE_REBUILD:-false}" != "true" ]; then
+        exit 1
+    else
+        echo -e "${YELLOW}⚠ FORCE_REBUILD enabled - proceeding with fresh installation${NC}\n"
+    fi
 fi
 
 # Detect Ubuntu version
