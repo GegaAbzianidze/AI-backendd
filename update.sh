@@ -284,16 +284,86 @@ fi
 # ============================================
 echo -e "${YELLOW}Restarting service...${NC}"
 
+# Check if service exists
+if [ ! -f "/etc/systemd/system/${APP_NAME}.service" ]; then
+    echo -e "${YELLOW}⚠ Service file not found. Creating systemd service...${NC}"
+    
+    # Get port from .env or use default
+    if [ -f ".env" ]; then
+        BACKEND_PORT=$(grep "^PORT=" .env | cut -d'=' -f2- || echo "3000")
+    else
+        BACKEND_PORT="3000"
+    fi
+    
+    # Create systemd service file
+    cat > "/etc/systemd/system/${APP_NAME}.service" <<EOF
+[Unit]
+Description=AI Backend Node.js API Server
+After=network.target
+
+[Service]
+Type=simple
+User=${APP_USER}
+Group=${APP_USER}
+WorkingDirectory=${APP_DIR}
+EnvironmentFile=${APP_DIR}/.env
+Environment="HOME=${APP_DIR}"
+Environment="APP_DIR=${APP_DIR}"
+Environment="RUNTIME_DIR=${APP_DIR}"
+Environment="MPLCONFIGDIR=${APP_DIR}/.config/matplotlib"
+Environment="XDG_CACHE_HOME=${APP_DIR}/.cache"
+Environment="XDG_CONFIG_HOME=${APP_DIR}/.config"
+Environment="EASYOCR_CACHE_DIR=${APP_DIR}/.EasyOCR"
+Environment="PYTHON_EXECUTABLE=${APP_DIR}/python/venv/bin/python"
+Environment="YOLO_MODEL_PATH=${APP_DIR}/models/my_model/train/weights/best.pt"
+ExecStart=/usr/bin/node ${APP_DIR}/dist/index.js
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=${APP_NAME}
+
+# Security hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=${APP_DIR}/uploads ${APP_DIR}/frames ${APP_DIR}/jobs ${APP_DIR}/data ${APP_DIR}/.config ${APP_DIR}/.cache ${APP_DIR}/.EasyOCR
+
+# Resource limits
+LimitNOFILE=65536
+LimitNPROC=4096
+
+[Install]
+WantedBy=multi-user.target
+EOF
+    
+    echo -e "${GREEN}✓ Created systemd service file${NC}"
+    systemctl daemon-reload
+    systemctl enable "${APP_NAME}.service"
+    echo -e "${GREEN}✓ Enabled service${NC}"
+fi
+
 # Reload systemd to pick up any service file changes
 systemctl daemon-reload
 
-# Restart the service
-systemctl restart "${APP_NAME}.service"
+# Restart the service (or start if not running)
+if systemctl is-active --quiet "${APP_NAME}.service"; then
+    systemctl restart "${APP_NAME}.service"
+    echo -e "${GREEN}✓ Service restarted${NC}"
+elif systemctl is-enabled --quiet "${APP_NAME}.service" 2>/dev/null; then
+    systemctl start "${APP_NAME}.service"
+    echo -e "${GREEN}✓ Service started${NC}"
+else
+    systemctl enable "${APP_NAME}.service"
+    systemctl start "${APP_NAME}.service"
+    echo -e "${GREEN}✓ Service enabled and started${NC}"
+fi
 
 # Set ownership
 chown -R "$APP_USER:$APP_USER" "$APP_DIR"
 
-echo -e "${GREEN}✓ Service restarted${NC}\n"
+echo ""
 
 # ============================================
 # Final Status
@@ -303,7 +373,12 @@ echo -e "${GREEN}Update Complete!${NC}"
 echo -e "${GREEN}========================================${NC}\n"
 
 echo -e "${YELLOW}Service Status:${NC}"
-systemctl status "${APP_NAME}.service" --no-pager -l | head -15
+if systemctl is-active --quiet "${APP_NAME}.service" 2>/dev/null; then
+    systemctl status "${APP_NAME}.service" --no-pager -l | head -15
+else
+    echo -e "${YELLOW}⚠ Service is not running${NC}"
+    systemctl status "${APP_NAME}.service" --no-pager -l 2>&1 | head -10 || true
+fi
 
 echo -e "\n${YELLOW}Useful Commands:${NC}"
 echo -e "  View logs:    journalctl -u ${APP_NAME}.service -f"
