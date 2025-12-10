@@ -1,5 +1,72 @@
 # Troubleshooting Guide
 
+## YOLO Model File Errors
+
+### Error: `_pickle.UnpicklingError: invalid load key, 'v'`
+
+This error means the model file is corrupted or is a text file instead of a binary PyTorch model.
+
+#### Diagnosis
+
+Run the diagnostic script:
+```bash
+sudo bash check-model.sh
+```
+
+Or manually check:
+```bash
+# Check if file exists
+ls -lh /opt/ai-backend/models/my_model/train/weights/best.pt
+
+# Check file type
+file /opt/ai-backend/models/my_model/train/weights/best.pt
+
+# Check first few bytes (should be binary, not text)
+head -c 50 /opt/ai-backend/models/my_model/train/weights/best.pt | cat -A
+```
+
+#### Solutions
+
+**1. Verify the model file is correct:**
+```bash
+# The file should be a binary .pt file, not a text file
+# Check file size (should be several MB, not a few KB)
+ls -lh /opt/ai-backend/models/my_model/train/weights/best.pt
+
+# If it's very small or shows as "text", it's wrong
+```
+
+**2. Re-upload the correct model file:**
+```bash
+# If you have the correct best.pt file, upload it:
+# Option A: Using SCP from your local machine
+scp models/my_model/train/weights/best.pt user@server:/opt/ai-backend/models/my_model/train/weights/
+
+# Option B: Using SFTP
+sftp user@server
+put models/my_model/train/weights/best.pt /opt/ai-backend/models/my_model/train/weights/
+
+# Then fix permissions
+sudo chown -R ai-backend:ai-backend /opt/ai-backend/models
+```
+
+**3. Check if wrong file is being loaded:**
+```bash
+# List all files in the model directory
+ls -la /opt/ai-backend/models/my_model/train/weights/
+
+# Make sure best.pt is the actual model, not args.yaml or another file
+```
+
+**4. Verify model path in .env:**
+```bash
+# Check the path is correct
+grep YOLO_MODEL_PATH /opt/ai-backend/.env
+
+# Should show:
+# YOLO_MODEL_PATH=/opt/ai-backend/models/my_model/train/weights/best.pt
+```
+
 ## Let's Encrypt SSL Certificate Issues
 
 ### Problem: "Timeout during connect (likely firewall problem)"
@@ -146,6 +213,30 @@ sudo cat /etc/nginx/sites-available/ai-backend
 sudo certbot --nginx -d shuaman.publicvm.com --redirect
 ```
 
+## Python Path Errors
+
+### Error: "spawn /app/python/venv/bin/python ENOENT"
+
+This means the Python executable path is wrong.
+
+**Solution:**
+```bash
+# Verify Python exists
+ls -la /opt/ai-backend/python/venv/bin/python
+
+# Update .env file
+sudo nano /opt/ai-backend/.env
+# Ensure it has: PYTHON_EXECUTABLE=/opt/ai-backend/python/venv/bin/python
+
+# Update systemd service
+sudo nano /etc/systemd/system/ai-backend.service
+# Add: Environment="PYTHON_EXECUTABLE=/opt/ai-backend/python/venv/bin/python"
+
+# Restart
+sudo systemctl daemon-reload
+sudo systemctl restart ai-backend.service
+```
+
 ## Quick Diagnostic Commands
 
 Run these to diagnose issues:
@@ -173,75 +264,12 @@ curl -I http://shuaman.publicvm.com
 
 # 7. Check certbot logs
 sudo tail -50 /var/log/letsencrypt/letsencrypt.log
-```
 
-## Manual HTTPS Setup (After DNS is Fixed)
+# 8. Check model file
+sudo bash check-model.sh
 
-If you've fixed DNS and firewall, but the deployment script already failed:
-
-```bash
-# 1. Ensure HTTP works first
-curl -I http://shuaman.publicvm.com
-
-# 2. Run certbot manually
-sudo certbot --nginx -d shuaman.publicvm.com
-
-# 3. Follow prompts (or use non-interactive):
-sudo certbot --nginx \
-    --non-interactive \
-    --agree-tos \
-    --email your@email.com \
-    -d shuaman.publicvm.com \
-    --redirect
-
-# 4. Verify certificate
-sudo certbot certificates
-
-# 5. Test auto-renewal
-sudo certbot renew --dry-run
-```
-
-## Other Common Issues
-
-### Application Not Starting
-
-```bash
-# Check service status
-sudo systemctl status ai-backend.service
-
-# View logs
-sudo journalctl -u ai-backend.service -f
-
-# Check if port is in use
-sudo netstat -tlnp | grep 3000
-```
-
-### Python Detection Service Fails
-
-```bash
-# Check Python environment
-/opt/ai-backend/python/venv/bin/python --version
-
-# Check cache directories
-ls -la /opt/ai-backend/.config
-ls -la /opt/ai-backend/.cache
-ls -la /opt/ai-backend/.EasyOCR
-
-# Check permissions
-sudo chown -R ai-backend:ai-backend /opt/ai-backend/.config /opt/ai-backend/.cache /opt/ai-backend/.EasyOCR
-```
-
-### Nginx 502 Bad Gateway
-
-```bash
-# Check if backend is running
-curl http://localhost:3000/api/status/health
-
-# If not, check backend logs
+# 9. Check application logs
 sudo journalctl -u ai-backend.service -n 50
-
-# Check Nginx error logs
-sudo tail -50 /var/log/nginx/ai-backend-error.log
 ```
 
 ## Getting Help
@@ -261,4 +289,3 @@ If issues persist:
 3. Test connectivity:
    - From server: `curl -I http://localhost:3000`
    - From internet: `curl -I http://shuaman.publicvm.com`
-

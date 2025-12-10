@@ -86,10 +86,49 @@ def read_text(reader: easyocr.Reader, image: np.ndarray) -> str:
 
 
 def run_detection(model_path, frames_dir, output_json, min_conf, fps=7.0, preview_file=None):
+    # Validate model file exists and is valid
+    if not os.path.exists(model_path):
+        error_msg = f'ERROR: Model file not found: {model_path}'
+        print(error_msg, flush=True)
+        raise FileNotFoundError(error_msg)
+    
+    # Check if file is actually a .pt file and has reasonable size (at least 1KB)
+    if not model_path.endswith('.pt'):
+        error_msg = f'ERROR: Model file must be a .pt file: {model_path}'
+        print(error_msg, flush=True)
+        raise ValueError(error_msg)
+    
+    file_size = os.path.getsize(model_path)
+    if file_size < 1024:  # Less than 1KB is suspicious
+        error_msg = f'ERROR: Model file appears corrupted (too small: {file_size} bytes): {model_path}'
+        print(error_msg, flush=True)
+        raise ValueError(error_msg)
+    
+    # Try to read first few bytes to check if it's a valid PyTorch file
+    try:
+        with open(model_path, 'rb') as f:
+            header = f.read(4)
+            # PyTorch files typically start with specific magic bytes
+            # If it starts with text characters, it's likely wrong
+            if header.startswith(b'v') or header.startswith(b'#'):
+                error_msg = f'ERROR: Model file appears to be a text file, not a PyTorch model: {model_path}'
+                print(error_msg, flush=True)
+                print(f'DEBUG: File header: {header[:20]}', flush=True)
+                raise ValueError(error_msg)
+    except Exception as e:
+        print(f'WARNING: Could not validate model file header: {e}', flush=True)
+    
+    print(f'DEBUG: Loading YOLO model from {model_path} (size: {file_size} bytes)', flush=True)
+    
     try:
         model = YOLO(model_path, task='detect')
+        print(f'DEBUG: YOLO model loaded successfully', flush=True)
     except Exception as e:
-        print(f'ERROR: Failed to load YOLO model from {model_path}: {e}', flush=True)
+        error_msg = f'ERROR: Failed to load YOLO model from {model_path}: {e}'
+        print(error_msg, flush=True)
+        print(f'DEBUG: Model file exists: {os.path.exists(model_path)}', flush=True)
+        print(f'DEBUG: Model file size: {file_size} bytes', flush=True)
+        print(f'DEBUG: Model file path: {os.path.abspath(model_path)}', flush=True)
         raise
     
     try:
