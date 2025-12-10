@@ -38,8 +38,12 @@ if [ "$EUID" -ne 0 ]; then
     exit 1
 fi
 
-# Note: build.sh can be run even if installation exists
-# It will rebuild/update components as needed
+# Check if installation already exists
+if [ -d "$APP_DIR" ] && [ -f "$APP_DIR/package.json" ]; then
+    echo -e "${RED}ERROR: Installation already exists at ${APP_DIR}${NC}"
+    echo -e "${YELLOW}For updates, please use: sudo bash update.sh${NC}"
+    exit 1
+fi
 
 # Detect Ubuntu version
 if [ -f /etc/os-release ]; then
@@ -457,95 +461,6 @@ if [ "$SKIP_HTTPS" != "true" ] && [ "$DOMAIN" != "mydomain.com" ] && [ "$DOMAIN"
             --redirect 2>&1 | tee /tmp/certbot-output.log; then
             systemctl enable certbot.timer
             systemctl start certbot.timer
-            
-            # Verify and fix nginx config after certbot
-            echo -e "${YELLOW}Verifying nginx configuration after certbot...${NC}"
-            
-            # Check if HTTPS server block has proxy settings
-            if ! grep -q "proxy_pass http://127.0.0.1:${BACKEND_PORT}" /etc/nginx/sites-enabled/${APP_NAME}; then
-                echo -e "${YELLOW}⚠ Certbot may have removed proxy settings. Fixing...${NC}"
-                # Backup current config
-                cp /etc/nginx/sites-enabled/${APP_NAME} /etc/nginx/sites-enabled/${APP_NAME}.certbot-backup
-                
-                # Recreate config with HTTPS settings preserved
-                # Extract SSL settings from certbot config
-                SSL_CERT=$(grep "ssl_certificate " /etc/nginx/sites-enabled/${APP_NAME} | head -1 | sed 's/.*ssl_certificate //;s/;.*//')
-                SSL_KEY=$(grep "ssl_certificate_key " /etc/nginx/sites-enabled/${APP_NAME} | head -1 | sed 's/.*ssl_certificate_key //;s/;.*//')
-                
-                # Create proper config with both HTTP redirect and HTTPS proxy
-                cat > "/etc/nginx/sites-available/${APP_NAME}" <<NGINX_EOF
-# HTTP server - redirect to HTTPS
-server {
-    listen 80;
-    server_name ${DOMAIN} _;
-    
-    # Redirect all HTTP to HTTPS
-    return 301 https://\$host\$request_uri;
-}
-
-# HTTPS server - proxy to backend
-server {
-    listen 443 ssl http2;
-    server_name ${DOMAIN} _;
-
-    # SSL configuration (managed by Certbot)
-    ssl_certificate ${SSL_CERT:-/etc/letsencrypt/live/${DOMAIN}/fullchain.pem};
-    ssl_certificate_key ${SSL_KEY:-/etc/letsencrypt/live/${DOMAIN}/privkey.pem};
-    include /etc/letsencrypt/options-ssl-nginx.conf;
-    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
-
-    client_max_body_size 500M;
-    
-    access_log /var/log/nginx/${APP_NAME}-access.log;
-    error_log /var/log/nginx/${APP_NAME}-error.log;
-
-    proxy_set_header Host \$host;
-    proxy_set_header X-Real-IP \$remote_addr;
-    proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-    proxy_set_header X-Forwarded-Proto \$scheme;
-    
-    proxy_connect_timeout 300s;
-    proxy_send_timeout 300s;
-    proxy_read_timeout 300s;
-    send_timeout 300s;
-
-    location /api/ {
-        proxy_pass http://127.0.0.1:${BACKEND_PORT};
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade \$http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_cache_bypass \$http_upgrade;
-    }
-
-    location /frames/ {
-        alias ${APP_DIR}/frames/;
-        expires 1h;
-        add_header Cache-Control "public, immutable";
-    }
-
-    location / {
-        proxy_pass http://127.0.0.1:${BACKEND_PORT};
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade \$http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_cache_bypass \$http_upgrade;
-    }
-}
-NGINX_EOF
-            
-                # Test and reload
-                if nginx -t; then
-                    systemctl reload nginx
-                    echo -e "${GREEN}✓ Nginx configuration fixed${NC}"
-                else
-                    echo -e "${RED}✗ Nginx configuration test failed. Restoring backup...${NC}"
-                    cp /etc/nginx/sites-enabled/${APP_NAME}.certbot-backup /etc/nginx/sites-enabled/${APP_NAME}
-                    nginx -t && systemctl reload nginx
-                fi
-            else
-                echo -e "${GREEN}✓ Nginx configuration verified${NC}"
-            fi
-            
             echo -e "${GREEN}✓ HTTPS configured${NC}"
         else
             echo -e "${YELLOW}⚠ HTTPS setup failed. Run manually: certbot --nginx -d ${DOMAIN}${NC}"
@@ -597,40 +512,5 @@ echo -e "  View logs:    journalctl -u ${APP_NAME}.service -f"
 echo -e "  Restart:      systemctl restart ${APP_NAME}.service"
 echo -e "  Status:       systemctl status ${APP_NAME}.service"
 echo -e "  Update:       sudo bash update.sh"
-echo -e "\n${YELLOW}Troubleshooting:${NC}"
-echo -e "  Check Nginx:  systemctl status nginx"
-echo -e "  Check backend: curl http://localhost:${BACKEND_PORT}"
-echo -e "  Check Nginx logs: tail -f /var/log/nginx/${APP_NAME}-error.log"
-echo -e "  Check backend logs: journalctl -u ${APP_NAME}.service -n 50"
 echo -e "${GREEN}========================================${NC}\n"
-
-# Quick health check
-echo -e "${YELLOW}Running health checks...${NC}"
-sleep 2
-
-# Check if backend is responding
-if curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:${BACKEND_PORT} | grep -q "200\|404\|301\|302"; then
-    echo -e "${GREEN}✓ Backend is responding on port ${BACKEND_PORT}${NC}"
-else
-    echo -e "${RED}⚠ Backend is not responding on port ${BACKEND_PORT}${NC}"
-    echo -e "${YELLOW}  Check service logs: journalctl -u ${APP_NAME}.service -n 50${NC}"
-fi
-
-# Check if nginx is running
-if systemctl is-active --quiet nginx; then
-    echo -e "${GREEN}✓ Nginx is running${NC}"
-else
-    echo -e "${RED}⚠ Nginx is not running${NC}"
-    echo -e "${YELLOW}  Start with: systemctl start nginx${NC}"
-fi
-
-# Check if nginx can reach backend
-if curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:80 | grep -q "200\|404\|301\|302\|502"; then
-    echo -e "${GREEN}✓ Nginx is responding${NC}"
-else
-    echo -e "${RED}⚠ Nginx is not responding${NC}"
-    echo -e "${YELLOW}  Check nginx logs: tail -f /var/log/nginx/${APP_NAME}-error.log${NC}"
-fi
-
-echo ""
 
