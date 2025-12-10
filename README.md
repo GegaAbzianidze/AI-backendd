@@ -43,11 +43,43 @@ AI backend/
 
 ## 🚀 Quick Start
 
-### Prerequisites
+### Local Development
 
+**Prerequisites:**
 - Node.js 20+
 - Python 3.12
 - FFmpeg
+
+### Production Deployment (Ubuntu)
+
+**One-command deployment:**
+
+```bash
+# Clone repository
+git clone <your-repo-url> /opt/ai-backend
+
+# Run build script
+cd /opt/ai-backend
+sudo bash build.sh
+```
+
+The `build.sh` script handles everything:
+- ✅ System dependencies installation
+- ✅ Python virtual environment setup
+- ✅ Node.js build
+- ✅ Git LFS model file handling
+- ✅ Environment configuration
+- ✅ Systemd service setup
+- ✅ Nginx reverse proxy
+- ✅ HTTPS with Let's Encrypt (optional)
+- ✅ Firewall configuration
+
+**For updates, simply run the same script:**
+```bash
+sudo bash build.sh
+```
+
+It automatically detects if it's an update and preserves your configuration.
 
 ### Local Development
 

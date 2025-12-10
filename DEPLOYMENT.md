@@ -17,35 +17,27 @@ git clone <your-repo-url> /opt/ai-backend
 cd /opt/ai-backend
 ```
 
-2. Run the deployment script:
+2. Run the build script:
 ```bash
-sudo bash deploy_ubuntu.sh
+sudo bash build.sh
 ```
 
 ### Updating the Application
 
-After initial deployment, to update to the latest code:
+After initial deployment, to update to the latest code, simply run the same script:
 
 ```bash
-# Option 1: Use the update script (recommended)
-sudo bash update.sh
-
-# Option 2: Manual update
-cd /opt/ai-backend
-sudo git pull
-sudo npm ci --production
-sudo npm install typescript --no-save
-sudo npm run build
-sudo npm uninstall typescript
-sudo systemctl restart ai-backend.service
+sudo bash build.sh
 ```
 
-The `update.sh` script will:
-- Pull latest changes from git
-- Update Python dependencies if needed
-- Rebuild TypeScript
-- Restart the service
-- Preserve your `.env` file
+The `build.sh` script automatically detects if it's an update and:
+- Preserves your `.env` file and configuration
+- Pulls latest changes from git
+- Handles Git LFS model files
+- Updates Python dependencies if needed
+- Rebuilds TypeScript
+- Updates paths in .env file
+- Restarts the service
 
 The script will:
 - Install all system dependencies
