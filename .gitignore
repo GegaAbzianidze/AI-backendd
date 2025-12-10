@@ -105,15 +105,6 @@ temp/
 .railway/
 fly.toml.backup
 
-# Model training outputs (keep only best.pt)
-models/my_model/train/**/*.jpg
-models/my_model/train/**/*.png
-models/my_model/train/**/*.csv
-models/my_model/train/**/*.yaml
-models/my_model/train/weights/last.pt
-models/my_model/*.mp4
-models/my_model/*.py
-models/my_model/my_model.pt
 
 # Keep only the trained model
 !models/my_model/train/weights/best.pt
