@@ -90,14 +90,36 @@ echo ""
 echo -e "${YELLOW}[3/5] Updating Python environment...${NC}"
 
 if [ "$SKIP_PYTHON_UPDATE" != "true" ]; then
+    # Ensure python directory exists
+    mkdir -p python
+    
     # Ensure virtual environment exists
     if [ ! -d "python/venv" ]; then
+        echo -e "${YELLOW}Creating Python virtual environment...${NC}"
         python3 -m venv python/venv
+        if [ $? -ne 0 ]; then
+            echo -e "${RED}✗ ERROR: Failed to create Python virtual environment${NC}"
+            exit 1
+        fi
         echo -e "${GREEN}✓ Created Python virtual environment${NC}"
     fi
     
+    # Verify activate script exists
+    ACTIVATE_SCRIPT="python/venv/bin/activate"
+    if [ ! -f "$ACTIVATE_SCRIPT" ]; then
+        echo -e "${RED}✗ ERROR: Virtual environment activate script not found at ${ACTIVATE_SCRIPT}${NC}"
+        echo -e "${YELLOW}Recreating virtual environment...${NC}"
+        rm -rf python/venv
+        python3 -m venv python/venv
+        if [ $? -ne 0 ] || [ ! -f "$ACTIVATE_SCRIPT" ]; then
+            echo -e "${RED}✗ ERROR: Failed to create Python virtual environment${NC}"
+            exit 1
+        fi
+        echo -e "${GREEN}✓ Recreated Python virtual environment${NC}"
+    fi
+    
     # Activate and update
-    source python/venv/bin/activate
+    source "$ACTIVATE_SCRIPT"
     pip install --upgrade pip setuptools wheel --quiet
     
     if [ -f "python/requirements.txt" ]; then
@@ -116,7 +138,7 @@ PYTHON_EXEC="${APP_DIR}/python/venv/bin/python"
 if [ -f "$PYTHON_EXEC" ]; then
     echo -e "${GREEN}✓ Python executable verified${NC}"
 else
-    echo -e "${RED}✗ ERROR: Python executable not found${NC}"
+    echo -e "${RED}✗ ERROR: Python executable not found at ${PYTHON_EXEC}${NC}"
     exit 1
 fi
 
