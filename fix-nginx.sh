@@ -10,8 +10,21 @@ DOMAIN="shuaman.publicvm.com"
 
 echo "Fixing nginx configuration..."
 
+# Remove any duplicate configs first
+echo "Checking for duplicate configurations..."
+if [ -f "/etc/nginx/sites-enabled/${APP_NAME}" ]; then
+    # Count how many times the domain appears
+    DUPLICATE_COUNT=$(grep -c "server_name ${DOMAIN}" /etc/nginx/sites-enabled/* 2>/dev/null || echo "0")
+    if [ "$DUPLICATE_COUNT" -gt "1" ]; then
+        echo "⚠ Found duplicate server blocks. Cleaning up..."
+        # Backup all configs
+        mkdir -p /etc/nginx/sites-enabled/backups
+        cp /etc/nginx/sites-enabled/${APP_NAME}* /etc/nginx/sites-enabled/backups/ 2>/dev/null || true
+    fi
+fi
+
 # Backup current config
-cp /etc/nginx/sites-enabled/${APP_NAME} /etc/nginx/sites-enabled/${APP_NAME}.backup.$(date +%Y%m%d_%H%M%S)
+cp /etc/nginx/sites-enabled/${APP_NAME} /etc/nginx/sites-enabled/${APP_NAME}.backup.$(date +%Y%m%d_%H%M%S) 2>/dev/null || true
 
 # Create proper config with both HTTP redirect and HTTPS proxy
 cat > "/etc/nginx/sites-available/${APP_NAME}" <<EOF
@@ -74,8 +87,12 @@ server {
 }
 EOF
 
-# Ensure symlink exists
+# Ensure symlink exists and remove any other configs with same domain
 ln -sf "/etc/nginx/sites-available/${APP_NAME}" "/etc/nginx/sites-enabled/${APP_NAME}"
+
+# Remove any other files that might have duplicate server blocks
+# (certbot sometimes creates separate files)
+find /etc/nginx/sites-enabled/ -name "*${APP_NAME}*" ! -name "${APP_NAME}" ! -name "*.backup.*" -type f -delete 2>/dev/null || true
 
 # Test configuration
 echo "Testing nginx configuration..."
