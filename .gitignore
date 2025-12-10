@@ -106,9 +106,6 @@ temp/
 fly.toml.backup
 
 
-# Keep only the trained model
-!models/my_model/train/weights/best.pt
-
 # Cache directories
 .cache/
 .parcel-cache/

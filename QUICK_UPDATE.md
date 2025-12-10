@@ -61,7 +61,7 @@ sudo systemctl status ai-backend.service
 
 ### Troubleshooting Updates
 
-If update fails:
+If update fails:z
 
 ```bash
 # Check what went wrong
